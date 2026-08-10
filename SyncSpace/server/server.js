@@ -11,7 +11,10 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5174",
+    origin: [
+      "http://localhost:5173",
+      "http://localhost:5174",
+    ],
     methods: ["GET", "POST"],
   },
 });
@@ -28,17 +31,15 @@ io.on("connection", (socket) => {
     socket.join(roomId);
 
     console.log(`User ${socket.id} joined room: ${roomId}`);
-
-    // Tell other users that someone joined
-    socket.to(roomId).emit("user-joined", socket.id);
   });
 
-  // Receive drawing from a user
+  // Real-time whiteboard drawing
   socket.on("draw-line", (data) => {
-    const { roomId } = data;
-
-    // Send drawing to everyone else in the same room
-    socket.to(roomId).emit("draw-line", data);
+    socket.to(data.roomId).emit("draw-line", {
+      points: data.points,
+      color: data.color,
+      brushSize: data.brushSize,
+    });
   });
 
   // Clear whiteboard
@@ -46,7 +47,14 @@ io.on("connection", (socket) => {
     socket.to(roomId).emit("clear-board");
   });
 
-  // User disconnected
+  // Real-time code editor
+  socket.on("code-change", (data) => {
+    socket.to(data.roomId).emit("code-update", {
+      code: data.code,
+    });
+  });
+
+  // User disconnect
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
   });

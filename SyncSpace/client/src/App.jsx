@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import { Stage, Layer, Line } from "react-konva";
+import Editor from "@monaco-editor/react";
 
 const socket = io("http://localhost:5000");
 
@@ -8,13 +9,19 @@ function App() {
   const [status, setStatus] = useState("Connecting...");
   const [roomId, setRoomId] = useState("");
   const [joinedRoom, setJoinedRoom] = useState("");
-  const [lines, setLines] = useState([]);
 
+  // Whiteboard
+  const [lines, setLines] = useState([]);
   const [color, setColor] = useState("#2563eb");
   const [brushSize, setBrushSize] = useState(4);
   const [isDrawing, setIsDrawing] = useState(false);
 
-  // Socket connection
+  // Code Editor
+  const [code, setCode] = useState(
+    '// Welcome to SyncSpace\nconsole.log("Hello SyncSpace!");'
+  );
+  const [language, setLanguage] = useState("javascript");
+
   useEffect(() => {
     socket.on("connect", () => {
       setStatus("Connected to SyncSpace Server ✅");
@@ -24,7 +31,7 @@ function App() {
       setStatus("Disconnected from Server ❌");
     });
 
-    // Receive drawing from another user
+    // Receive whiteboard drawing
     socket.on("draw-line", (data) => {
       setLines((oldLines) => [
         ...oldLines,
@@ -36,9 +43,14 @@ function App() {
       ]);
     });
 
-    // Receive clear board event
+    // Receive clear board
     socket.on("clear-board", () => {
       setLines([]);
+    });
+
+    // Receive code from another user
+    socket.on("code-update", (data) => {
+      setCode(data.code);
     });
 
     return () => {
@@ -46,10 +58,11 @@ function App() {
       socket.off("disconnect");
       socket.off("draw-line");
       socket.off("clear-board");
+      socket.off("code-update");
     };
   }, []);
 
-  // Join collaboration room
+  // Join room
   const joinRoom = () => {
     if (!roomId.trim()) {
       alert("Please enter a Room ID");
@@ -60,7 +73,10 @@ function App() {
     setJoinedRoom(roomId);
   };
 
-  // Start drawing
+  // =========================
+  // WHITEBOARD
+  // =========================
+
   const startDrawing = (event) => {
     if (!joinedRoom) {
       alert("Please join a room first");
@@ -76,13 +92,12 @@ function App() {
       ...oldLines,
       {
         points: [point.x, point.y],
-        color: color,
-        brushSize: brushSize,
+        color,
+        brushSize,
       },
     ]);
   };
 
-  // Draw
   const draw = (event) => {
     if (!isDrawing) return;
 
@@ -92,9 +107,7 @@ function App() {
     setLines((oldLines) => {
       const lastLine = oldLines[oldLines.length - 1];
 
-      if (!lastLine) {
-        return oldLines;
-      }
+      if (!lastLine) return oldLines;
 
       const updatedLine = {
         ...lastLine,
@@ -105,7 +118,6 @@ function App() {
     });
   };
 
-  // Stop drawing and send line to server
   const stopDrawing = () => {
     if (!isDrawing) return;
 
@@ -114,9 +126,7 @@ function App() {
     setLines((currentLines) => {
       const lastLine = currentLines[currentLines.length - 1];
 
-      if (!lastLine) {
-        return currentLines;
-      }
+      if (!lastLine) return currentLines;
 
       socket.emit("draw-line", {
         roomId: joinedRoom,
@@ -129,12 +139,28 @@ function App() {
     });
   };
 
-  // Clear board
   const clearBoard = () => {
     setLines([]);
 
     if (joinedRoom) {
       socket.emit("clear-board", joinedRoom);
+    }
+  };
+
+  // =========================
+  // CODE EDITOR
+  // =========================
+
+  const handleCodeChange = (value) => {
+    const newCode = value || "";
+
+    setCode(newCode);
+
+    if (joinedRoom) {
+      socket.emit("code-change", {
+        roomId: joinedRoom,
+        code: newCode,
+      });
     }
   };
 
@@ -154,7 +180,7 @@ function App() {
           margin: "auto",
         }}
       >
-        {/* Header */}
+        {/* HEADER */}
 
         <h1
           style={{
@@ -177,7 +203,7 @@ function App() {
           {status}
         </p>
 
-        {/* Collaboration Room */}
+        {/* ROOM */}
 
         <div
           style={{
@@ -229,7 +255,7 @@ function App() {
           )}
         </div>
 
-        {/* Whiteboard */}
+        {/* WHITEBOARD */}
 
         <div
           style={{
@@ -244,9 +270,9 @@ function App() {
               display: "flex",
               justifyContent: "space-between",
               alignItems: "center",
-              marginBottom: "15px",
               flexWrap: "wrap",
               gap: "15px",
+              marginBottom: "15px",
             }}
           >
             <h2>🖍 Whiteboard</h2>
@@ -299,8 +325,6 @@ function App() {
             </div>
           </div>
 
-          {/* Canvas */}
-
           <div
             style={{
               background: "white",
@@ -333,21 +357,9 @@ function App() {
               </Layer>
             </Stage>
           </div>
-
-          {!joinedRoom && (
-            <p
-              style={{
-                textAlign: "center",
-                color: "#94a3b8",
-                marginTop: "15px",
-              }}
-            >
-              Join a room first, then start drawing.
-            </p>
-          )}
         </div>
 
-        {/* Code Editor */}
+        {/* CODE EDITOR */}
 
         <div
           style={{
@@ -357,15 +369,50 @@ function App() {
             marginTop: "20px",
           }}
         >
-          <h2>💻 Code Editor</h2>
-
-          <p
+          <div
             style={{
-              color: "#94a3b8",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              marginBottom: "15px",
             }}
           >
-            Code Editor will be integrated in the next phase.
-          </p>
+            <h2>💻 Code Editor</h2>
+
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              style={{
+                padding: "8px 12px",
+                borderRadius: "6px",
+              }}
+            >
+              <option value="javascript">JavaScript</option>
+              <option value="typescript">TypeScript</option>
+              <option value="python">Python</option>
+              <option value="java">Java</option>
+              <option value="cpp">C++</option>
+              <option value="html">HTML</option>
+              <option value="css">CSS</option>
+              <option value="json">JSON</option>
+            </select>
+          </div>
+
+          <Editor
+            height="500px"
+            language={language}
+            theme="vs-dark"
+            value={code}
+            onChange={handleCodeChange}
+            options={{
+              fontSize: 15,
+              minimap: {
+                enabled: false,
+              },
+              automaticLayout: true,
+              wordWrap: "on",
+            }}
+          />
         </div>
       </div>
     </div>
