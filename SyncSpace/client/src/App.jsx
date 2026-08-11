@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import { Stage, Layer, Line } from "react-konva";
@@ -7,8 +8,13 @@ const socket = io("http://localhost:5000");
 
 function App() {
   const [status, setStatus] = useState("Connecting...");
+
+  // Room
   const [roomId, setRoomId] = useState("");
   const [joinedRoom, setJoinedRoom] = useState("");
+
+  // Participants
+  const [participants, setParticipants] = useState([]);
 
   // Whiteboard
   const [lines, setLines] = useState([]);
@@ -20,7 +26,12 @@ function App() {
   const [code, setCode] = useState(
     '// Welcome to SyncSpace\nconsole.log("Hello SyncSpace!");'
   );
+
   const [language, setLanguage] = useState("javascript");
+
+  // =========================
+  // SOCKET CONNECTION
+  // =========================
 
   useEffect(() => {
     socket.on("connect", () => {
@@ -29,6 +40,12 @@ function App() {
 
     socket.on("disconnect", () => {
       setStatus("Disconnected from Server ❌");
+      setParticipants([]);
+    });
+
+    // Receive participants
+    socket.on("room-users", (users) => {
+      setParticipants(users);
     });
 
     // Receive whiteboard drawing
@@ -53,24 +70,32 @@ function App() {
       setCode(data.code);
     });
 
+    // Cleanup
     return () => {
       socket.off("connect");
       socket.off("disconnect");
+      socket.off("room-users");
       socket.off("draw-line");
       socket.off("clear-board");
       socket.off("code-update");
     };
   }, []);
 
-  // Join room
+  // =========================
+  // JOIN ROOM
+  // =========================
+
   const joinRoom = () => {
-    if (!roomId.trim()) {
+    const trimmedRoomId = roomId.trim();
+
+    if (!trimmedRoomId) {
       alert("Please enter a Room ID");
       return;
     }
 
-    socket.emit("join-room", roomId);
-    setJoinedRoom(roomId);
+    socket.emit("join-room", trimmedRoomId);
+
+    setJoinedRoom(trimmedRoomId);
   };
 
   // =========================
@@ -88,6 +113,8 @@ function App() {
     const stage = event.target.getStage();
     const point = stage.getPointerPosition();
 
+    if (!point) return;
+
     setLines((oldLines) => [
       ...oldLines,
       {
@@ -104,10 +131,14 @@ function App() {
     const stage = event.target.getStage();
     const point = stage.getPointerPosition();
 
+    if (!point) return;
+
     setLines((oldLines) => {
       const lastLine = oldLines[oldLines.length - 1];
 
-      if (!lastLine) return oldLines;
+      if (!lastLine) {
+        return oldLines;
+      }
 
       const updatedLine = {
         ...lastLine,
@@ -126,7 +157,9 @@ function App() {
     setLines((currentLines) => {
       const lastLine = currentLines[currentLines.length - 1];
 
-      if (!lastLine) return currentLines;
+      if (!lastLine) {
+        return currentLines;
+      }
 
       socket.emit("draw-line", {
         roomId: joinedRoom,
@@ -163,6 +196,10 @@ function App() {
       });
     }
   };
+
+  // =========================
+  // UI
+  // =========================
 
   return (
     <div
@@ -255,6 +292,67 @@ function App() {
           )}
         </div>
 
+        {/* PARTICIPANTS */}
+
+        <div
+          style={{
+            background: "#1e293b",
+            padding: "20px",
+            borderRadius: "12px",
+            marginTop: "20px",
+          }}
+        >
+          <h2>
+            👥 Participants ({participants.length})
+          </h2>
+
+          {!joinedRoom ? (
+            <p style={{ color: "#94a3b8" }}>
+              Join a room to see participants.
+            </p>
+          ) : participants.length === 0 ? (
+            <p style={{ color: "#94a3b8" }}>
+              Waiting for participants...
+            </p>
+          ) : (
+            participants.map((user) => (
+              <div
+                key={user.socketId}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  padding: "10px 0",
+                  borderBottom: "1px solid #334155",
+                }}
+              >
+                <span
+                  style={{
+                    color: "#22c55e",
+                    fontSize: "12px",
+                  }}
+                >
+                  ●
+                </span>
+
+                <span>{user.name}</span>
+
+                {user.socketId === socket.id && (
+                  <span
+                    style={{
+                      color: "#38bdf8",
+                      fontSize: "13px",
+                      marginLeft: "5px",
+                    }}
+                  >
+                    You
+                  </span>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
         {/* WHITEBOARD */}
 
         <div
@@ -290,7 +388,9 @@ function App() {
                 <input
                   type="color"
                   value={color}
-                  onChange={(e) => setColor(e.target.value)}
+                  onChange={(e) =>
+                    setColor(e.target.value)
+                  }
                 />
               </label>
 
@@ -305,7 +405,9 @@ function App() {
                   <option value={2}>Small</option>
                   <option value={4}>Medium</option>
                   <option value={8}>Large</option>
-                  <option value={14}>Extra Large</option>
+                  <option value={14}>
+                    Extra Large
+                  </option>
                 </select>
               </label>
 
@@ -336,8 +438,9 @@ function App() {
               width={1100}
               height={500}
               onMouseDown={startDrawing}
-              onMousemove={draw}
-              onMouseup={stopDrawing}
+              onMouseMove={draw}
+              onMouseUp={stopDrawing}
+              onMouseLeave={stopDrawing}
               style={{
                 cursor: "crosshair",
               }}
@@ -357,6 +460,18 @@ function App() {
               </Layer>
             </Stage>
           </div>
+
+          {!joinedRoom && (
+            <p
+              style={{
+                textAlign: "center",
+                color: "#94a3b8",
+                marginTop: "15px",
+              }}
+            >
+              Join a room first, then start drawing.
+            </p>
+          )}
         </div>
 
         {/* CODE EDITOR */}
@@ -375,26 +490,53 @@ function App() {
               justifyContent: "space-between",
               alignItems: "center",
               marginBottom: "15px",
+              flexWrap: "wrap",
+              gap: "10px",
             }}
           >
             <h2>💻 Code Editor</h2>
 
             <select
               value={language}
-              onChange={(e) => setLanguage(e.target.value)}
+              onChange={(e) =>
+                setLanguage(e.target.value)
+              }
               style={{
                 padding: "8px 12px",
                 borderRadius: "6px",
               }}
             >
-              <option value="javascript">JavaScript</option>
-              <option value="typescript">TypeScript</option>
-              <option value="python">Python</option>
-              <option value="java">Java</option>
-              <option value="cpp">C++</option>
-              <option value="html">HTML</option>
-              <option value="css">CSS</option>
-              <option value="json">JSON</option>
+              <option value="javascript">
+                JavaScript
+              </option>
+
+              <option value="typescript">
+                TypeScript
+              </option>
+
+              <option value="python">
+                Python
+              </option>
+
+              <option value="java">
+                Java
+              </option>
+
+              <option value="cpp">
+                C++
+              </option>
+
+              <option value="html">
+                HTML
+              </option>
+
+              <option value="css">
+                CSS
+              </option>
+
+              <option value="json">
+                JSON
+              </option>
             </select>
           </div>
 
@@ -420,3 +562,4 @@ function App() {
 }
 
 export default App;
+

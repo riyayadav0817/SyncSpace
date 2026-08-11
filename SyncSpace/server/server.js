@@ -23,6 +23,8 @@ app.get("/", (req, res) => {
   res.send("SyncSpace Server Running");
 });
 
+const roomUsers = {};
+
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
@@ -30,10 +32,21 @@ io.on("connection", (socket) => {
   socket.on("join-room", (roomId) => {
     socket.join(roomId);
 
+    if (!roomUsers[roomId]) {
+      roomUsers[roomId] = [];
+    }
+
+    roomUsers[roomId].push({
+      socketId: socket.id,
+      name: `User-${socket.id.slice(0, 4)}`,
+    });
+
     console.log(`User ${socket.id} joined room: ${roomId}`);
+
+    io.to(roomId).emit("room-users", roomUsers[roomId]);
   });
 
-  // Real-time whiteboard drawing
+  // Whiteboard drawing
   socket.on("draw-line", (data) => {
     socket.to(data.roomId).emit("draw-line", {
       points: data.points,
@@ -47,16 +60,28 @@ io.on("connection", (socket) => {
     socket.to(roomId).emit("clear-board");
   });
 
-  // Real-time code editor
+  // Code editor
   socket.on("code-change", (data) => {
     socket.to(data.roomId).emit("code-update", {
       code: data.code,
     });
   });
 
-  // User disconnect
+  // Disconnect
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
+
+    for (const roomId in roomUsers) {
+      roomUsers[roomId] = roomUsers[roomId].filter(
+        (user) => user.socketId !== socket.id
+      );
+
+      io.to(roomId).emit("room-users", roomUsers[roomId]);
+
+      if (roomUsers[roomId].length === 0) {
+        delete roomUsers[roomId];
+      }
+    }
   });
 });
 
