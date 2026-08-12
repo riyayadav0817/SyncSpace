@@ -1,32 +1,45 @@
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 
-import Header from "./components/Header";
 import Participants from "./components/Participants";
 import RoomPanel from "./components/RoomPanel";
 import Whiteboard from "./components/Whiteboard";
 import CodeEditor from "./components/CodeEditor";
 import Chat from "./components/Chat";
+import WorkspaceLayout from "./components/WorkspaceLayout";
 
+// Socket connection
 const socket = io("http://localhost:5000");
 
 function App() {
   const [status, setStatus] = useState("Connecting...");
 
-  // Room
+  // =========================
+  // ROOM
+  // =========================
+
   const [roomId, setRoomId] = useState("");
   const [joinedRoom, setJoinedRoom] = useState("");
 
-  // Participants
+  // =========================
+  // PARTICIPANTS
+  // =========================
+
   const [participants, setParticipants] = useState([]);
 
-  // Whiteboard
+  // =========================
+  // WHITEBOARD
+  // =========================
+
   const [lines, setLines] = useState([]);
   const [color, setColor] = useState("#2563eb");
   const [brushSize, setBrushSize] = useState(4);
   const [isDrawing, setIsDrawing] = useState(false);
 
-  // Code Editor
+  // =========================
+  // CODE EDITOR
+  // =========================
+
   const [code, setCode] = useState(
     '// Welcome to SyncSpace\nconsole.log("Hello SyncSpace!");'
   );
@@ -70,6 +83,7 @@ function App() {
       setCode(data.code);
     };
 
+    // Register listeners
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
     socket.on("room-users", handleRoomUsers);
@@ -77,6 +91,7 @@ function App() {
     socket.on("clear-board", handleClearBoard);
     socket.on("code-update", handleCodeUpdate);
 
+    // Cleanup
     return () => {
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);
@@ -109,76 +124,61 @@ function App() {
   // =========================
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#0f172a",
-        color: "white",
-        padding: "30px",
-        fontFamily: "Arial, sans-serif",
-      }}
+    <WorkspaceLayout
+      status={status}
+      joinedRoom={joinedRoom}
+      participants={participants}
     >
-      <div
-        style={{
-          maxWidth: "1200px",
-          margin: "auto",
-        }}
-      >
-        {/* HEADER */}
+      {/* ROOM */}
 
-        <Header status={status} />
+      <RoomPanel
+        roomId={roomId}
+        setRoomId={setRoomId}
+        joinedRoom={joinedRoom}
+        onJoinRoom={joinRoom}
+      />
 
-        {/* ROOM */}
+      {/* PARTICIPANTS */}
 
-        <RoomPanel
-          roomId={roomId}
-          setRoomId={setRoomId}
-          joinedRoom={joinedRoom}
-          onJoinRoom={joinRoom}
-        />
+      <Participants
+        joinedRoom={joinedRoom}
+        participants={participants}
+        currentSocketId={socket.id}
+      />
 
-        {/* PARTICIPANTS */}
+      {/* WHITEBOARD */}
 
-        <Participants
-          joinedRoom={joinedRoom}
-          participants={participants}
-          currentSocketId={socket.id}
-        />
+      <Whiteboard
+        joinedRoom={joinedRoom}
+        lines={lines}
+        setLines={setLines}
+        color={color}
+        setColor={setColor}
+        brushSize={brushSize}
+        setBrushSize={setBrushSize}
+        isDrawing={isDrawing}
+        setIsDrawing={setIsDrawing}
+        socket={socket}
+      />
 
-        {/* WHITEBOARD */}
+      {/* CHAT */}
 
-        <Whiteboard
-          joinedRoom={joinedRoom}
-          lines={lines}
-          setLines={setLines}
-          color={color}
-          setColor={setColor}
-          brushSize={brushSize}
-          setBrushSize={setBrushSize}
-          isDrawing={isDrawing}
-          setIsDrawing={setIsDrawing}
-          socket={socket}
-        />
+      <Chat
+        joinedRoom={joinedRoom}
+        socket={socket}
+      />
 
-        {/* CHAT */}
+      {/* CODE EDITOR */}
 
-        <Chat
-          joinedRoom={joinedRoom}
-          socket={socket}
-        />
-
-        {/* CODE EDITOR */}
-
-        <CodeEditor
-          code={code}
-          setCode={setCode}
-          language={language}
-          setLanguage={setLanguage}
-          joinedRoom={joinedRoom}
-          socket={socket}
-        />
-      </div>
-    </div>
+      <CodeEditor
+        code={code}
+        setCode={setCode}
+        language={language}
+        setLanguage={setLanguage}
+        joinedRoom={joinedRoom}
+        socket={socket}
+      />
+    </WorkspaceLayout>
   );
 }
 
