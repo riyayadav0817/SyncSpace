@@ -67,6 +67,22 @@ io.on("connection", (socket) => {
     });
   });
 
+  // Real-time chat
+  socket.on("chat-message", (data) => {
+    const user = roomUsers[data.roomId]?.find(
+      (member) => member.socketId === socket.id
+    );
+
+    const userName = user
+      ? user.name
+      : `User-${socket.id.slice(0, 4)}`;
+
+    io.to(data.roomId).emit("chat-message", {
+      user: userName,
+      message: data.message,
+    });
+  });
+
   // Disconnect
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);

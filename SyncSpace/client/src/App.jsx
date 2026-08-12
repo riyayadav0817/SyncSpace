@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 
@@ -7,6 +6,7 @@ import Participants from "./components/Participants";
 import RoomPanel from "./components/RoomPanel";
 import Whiteboard from "./components/Whiteboard";
 import CodeEditor from "./components/CodeEditor";
+import Chat from "./components/Chat";
 
 const socket = io("http://localhost:5000");
 
@@ -160,6 +160,13 @@ function App() {
           socket={socket}
         />
 
+        {/* CHAT */}
+
+        <Chat
+          joinedRoom={joinedRoom}
+          socket={socket}
+        />
+
         {/* CODE EDITOR */}
 
         <CodeEditor
@@ -176,4 +183,3 @@ function App() {
 }
 
 export default App;
-
