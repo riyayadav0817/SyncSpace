@@ -23,84 +23,313 @@ app.get("/", (req, res) => {
   res.send("SyncSpace Server Running");
 });
 
+// =========================
+// ROOM DATA
+// =========================
+
 const roomUsers = {};
+const roomStates = {};
+
+// =========================
+// SOCKET CONNECTION
+// =========================
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
-  // Join collaboration room
+  // =========================
+  // JOIN ROOM
+  // =========================
+
   socket.on("join-room", (roomId) => {
+    if (!roomId) return;
+
     socket.join(roomId);
 
+    // Create users list
     if (!roomUsers[roomId]) {
       roomUsers[roomId] = [];
     }
 
-    roomUsers[roomId].push({
-      socketId: socket.id,
-      name: `User-${socket.id.slice(0, 4)}`,
-    });
+    // Prevent duplicate user
+    const alreadyJoined = roomUsers[roomId].some(
+      (user) => user.socketId === socket.id
+    );
 
-    console.log(`User ${socket.id} joined room: ${roomId}`);
+    if (!alreadyJoined) {
+      roomUsers[roomId].push({
+        socketId: socket.id,
+        name: `User-${socket.id.slice(0, 4)}`,
+      });
+    }
 
-    io.to(roomId).emit("room-users", roomUsers[roomId]);
+    // Create room state
+    if (!roomStates[roomId]) {
+      roomStates[roomId] = {
+        lines: [],
+        texts: [],
+        code:
+          '// Welcome to SyncSpace\nconsole.log("Hello SyncSpace!");',
+      };
+    }
+
+    console.log(
+      `User ${socket.id} joined room: ${roomId}`
+    );
+
+    // Send updated users to everyone
+    io.to(roomId).emit(
+      "room-users",
+      roomUsers[roomId]
+    );
+
+    // Send existing room state ONLY to new user
+    socket.emit(
+      "room-state",
+      roomStates[roomId]
+    );
   });
 
-  // Whiteboard drawing
+  // =========================
+  // WHITEBOARD - DRAW LINE
+  // =========================
+
   socket.on("draw-line", (data) => {
-    socket.to(data.roomId).emit("draw-line", {
+    if (!data?.roomId) return;
+
+    if (!roomStates[data.roomId]) {
+      roomStates[data.roomId] = {
+        lines: [],
+        texts: [],
+        code: "",
+      };
+    }
+
+    const newLine = {
       points: data.points,
       color: data.color,
       brushSize: data.brushSize,
-    });
-  });
+    };
 
-  // Clear whiteboard
-  socket.on("clear-board", (roomId) => {
-    socket.to(roomId).emit("clear-board");
-  });
+    // Save line on server
+    roomStates[data.roomId].lines.push(newLine);
 
-  // Code editor
-  socket.on("code-change", (data) => {
-    socket.to(data.roomId).emit("code-update", {
-      code: data.code,
-    });
-  });
-
-  // Real-time chat
-  socket.on("chat-message", (data) => {
-    const user = roomUsers[data.roomId]?.find(
-      (member) => member.socketId === socket.id
+    // Send to other users
+    socket.to(data.roomId).emit(
+      "draw-line",
+      newLine
     );
+  });
+
+  // =========================
+  // WHITEBOARD - ADD TEXT
+  // =========================
+
+  socket.on("add-text", (data) => {
+    if (!data?.roomId || !data?.text) {
+      return;
+    }
+
+    if (!roomStates[data.roomId]) {
+      roomStates[data.roomId] = {
+        lines: [],
+        texts: [],
+        code: "",
+      };
+    }
+
+    // Save text on server
+    roomStates[data.roomId].texts.push(
+      data.text
+    );
+
+    // Send to other users
+    socket.to(data.roomId).emit(
+      "add-text",
+      {
+        text: data.text,
+      }
+    );
+  });
+
+  // =========================
+  // WHITEBOARD - DELETE TEXT
+  // =========================
+
+  socket.on("delete-text", (data) => {
+    if (
+      !data?.roomId ||
+      !data?.textId
+    ) {
+      return;
+    }
+
+    if (roomStates[data.roomId]) {
+      roomStates[data.roomId].texts =
+        roomStates[data.roomId].texts.filter(
+          (text) =>
+            text.id !== data.textId
+        );
+    }
+
+    // Notify other users
+    socket.to(data.roomId).emit(
+      "delete-text",
+      {
+        textId: data.textId,
+      }
+    );
+  });
+
+  // =========================
+  // WHITEBOARD - ERASE LINE
+  // =========================
+
+  socket.on("erase-line", (data) => {
+    if (
+      !data?.roomId ||
+      typeof data.lineIndex !== "number"
+    ) {
+      return;
+    }
+
+    if (roomStates[data.roomId]) {
+      roomStates[data.roomId].lines =
+        roomStates[data.roomId].lines.filter(
+          (_, index) =>
+            index !== data.lineIndex
+        );
+    }
+
+    // Notify other users
+    socket.to(data.roomId).emit(
+      "erase-line",
+      {
+        lineIndex: data.lineIndex,
+      }
+    );
+  });
+
+  // =========================
+  // WHITEBOARD - CLEAR
+  // =========================
+
+  socket.on("clear-board", (roomId) => {
+    if (!roomId) return;
+
+    if (roomStates[roomId]) {
+      roomStates[roomId].lines = [];
+      roomStates[roomId].texts = [];
+    }
+
+    // Notify other users
+    socket.to(roomId).emit(
+      "clear-board"
+    );
+  });
+
+  // =========================
+  // CODE EDITOR
+  // =========================
+
+  socket.on("code-change", (data) => {
+    if (!data?.roomId) return;
+
+    if (!roomStates[data.roomId]) {
+      roomStates[data.roomId] = {
+        lines: [],
+        texts: [],
+        code: "",
+      };
+    }
+
+    // Save latest code
+    roomStates[data.roomId].code =
+      data.code;
+
+    // Send to other users
+    socket.to(data.roomId).emit(
+      "code-update",
+      {
+        code: data.code,
+      }
+    );
+  });
+
+  // =========================
+  // CHAT
+  // =========================
+
+  socket.on("chat-message", (data) => {
+    if (
+      !data?.roomId ||
+      !data?.message
+    ) {
+      return;
+    }
+
+    const user =
+      roomUsers[data.roomId]?.find(
+        (member) =>
+          member.socketId === socket.id
+      );
 
     const userName = user
       ? user.name
       : `User-${socket.id.slice(0, 4)}`;
 
-    io.to(data.roomId).emit("chat-message", {
-      user: userName,
-      message: data.message,
-    });
+    io.to(data.roomId).emit(
+      "chat-message",
+      {
+        user: userName,
+        message: data.message,
+      }
+    );
   });
 
-  // Disconnect
+  // =========================
+  // DISCONNECT
+  // =========================
+
   socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
+    console.log(
+      "User disconnected:",
+      socket.id
+    );
 
     for (const roomId in roomUsers) {
-      roomUsers[roomId] = roomUsers[roomId].filter(
-        (user) => user.socketId !== socket.id
+      // Remove user
+      roomUsers[roomId] =
+        roomUsers[roomId].filter(
+          (user) =>
+            user.socketId !== socket.id
+        );
+
+      // Update participants
+      io.to(roomId).emit(
+        "room-users",
+        roomUsers[roomId]
       );
 
-      io.to(roomId).emit("room-users", roomUsers[roomId]);
-
-      if (roomUsers[roomId].length === 0) {
+      // Delete empty room users
+      if (
+        roomUsers[roomId].length === 0
+      ) {
         delete roomUsers[roomId];
+
+        // Delete room state also
+        delete roomStates[roomId];
       }
     }
   });
 });
 
+// =========================
+// START SERVER
+// =========================
+
 server.listen(5000, () => {
-  console.log("Server running on port 5000");
+  console.log(
+    "Server running on port 5000"
+  );
 });
