@@ -1,7 +1,6 @@
-
-/* =========================================================
-   SYNCSPACE - GLOBAL APP STYLES
-   ========================================================= */
+/* =====================================
+   GLOBAL
+===================================== */
 
 * {
   box-sizing: border-box;
@@ -11,7 +10,6 @@ html,
 body,
 #root {
   margin: 0;
-  padding: 0;
   min-height: 100%;
   width: 100%;
 }
@@ -19,443 +17,88 @@ body,
 body {
   font-family:
     Inter,
+    system-ui,
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
+
   background: #020617;
-  color: #e2e8f0;
+  color: white;
 }
 
-/* =========================================================
-   AUTH / REGISTER / LOGIN / JOIN PAGE
-   ========================================================= */
 
-.auth-page {
-  min-height: 100vh;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
+/* =====================================
+   WORKSPACE NAVIGATION
+===================================== */
 
-  background:
-    radial-gradient(
-      circle at 15% 20%,
-      rgba(37, 99, 235, 0.22),
-      transparent 30%
-    ),
-    radial-gradient(
-      circle at 85% 80%,
-      rgba(124, 58, 237, 0.2),
-      transparent 30%
-    ),
-    linear-gradient(
-      135deg,
-      #020617 0%,
-      #0f172a 50%,
-      #172554 100%
-    );
-}
-
-/* Main authentication card */
-
-.auth-card {
-  width: 100%;
-  max-width: 430px;
-  padding: 38px;
-  border-radius: 24px;
-
+.workspace-navigation {
   background:
     linear-gradient(
       145deg,
-      rgba(15, 23, 42, 0.97),
-      rgba(15, 23, 42, 0.88)
-    );
-
-  border: 1px solid rgba(148, 163, 184, 0.14);
-
-  box-shadow:
-    0 30px 80px rgba(0, 0, 0, 0.5),
-    0 0 60px rgba(37, 99, 235, 0.08);
-
-  backdrop-filter: blur(18px);
-
-  animation: cardAppear 0.45s ease;
-}
-
-@keyframes cardAppear {
-  from {
-    opacity: 0;
-    transform: translateY(18px) scale(0.98);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-
-/* =========================================================
-   LOGO
-   ========================================================= */
-
-.auth-logo {
-  width: 68px;
-  height: 68px;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  margin: 0 auto 20px;
-
-  border-radius: 20px;
-
-  background:
-    linear-gradient(
-      135deg,
-      #2563eb,
-      #7c3aed
-    );
-
-  font-size: 32px;
-
-  box-shadow:
-    0 12px 30px rgba(37, 99, 235, 0.3);
-}
-
-/* =========================================================
-   AUTH TITLES
-   ========================================================= */
-
-.auth-title {
-  margin: 0;
-  color: #ffffff;
-
-  text-align: center;
-
-  font-size: 30px;
-  line-height: 1.2;
-  font-weight: 750;
-  letter-spacing: -0.5px;
-}
-
-.auth-subtitle {
-  margin: 12px 0 30px;
-
-  color: #94a3b8;
-
-  text-align: center;
-
-  font-size: 14px;
-  line-height: 1.7;
-}
-
-/* =========================================================
-   AUTH FORM
-   ========================================================= */
-
-.auth-form {
-  display: flex;
-  flex-direction: column;
-}
-
-.auth-label {
-  margin-bottom: 7px;
-
-  color: #cbd5e1;
-
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.auth-input {
-  width: 100%;
-
-  padding: 14px 15px;
-  margin-bottom: 17px;
-
-  border: 1px solid #334155;
-  border-radius: 11px;
-
-  background: #0b1220;
-  color: #ffffff;
-
-  outline: none;
-
-  font-size: 15px;
-
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease,
-    background 0.2s ease,
-    transform 0.2s ease;
-}
-
-.auth-input::placeholder {
-  color: #64748b;
-}
-
-.auth-input:hover {
-  border-color: #475569;
-}
-
-.auth-input:focus {
-  border-color: #3b82f6;
-
-  background: #0f172a;
-
-  box-shadow:
-    0 0 0 3px rgba(59, 130, 246, 0.12);
-}
-
-/* =========================================================
-   PRIMARY BUTTON
-   ========================================================= */
-
-.auth-button {
-  width: 100%;
-
-  padding: 14px 18px;
-  margin-top: 5px;
-
-  border: none;
-  border-radius: 11px;
-
-  background:
-    linear-gradient(
-      135deg,
-      #2563eb,
-      #4f46e5
-    );
-
-  color: #ffffff;
-
-  font-size: 15px;
-  font-weight: 700;
-
-  cursor: pointer;
-
-  box-shadow:
-    0 10px 25px rgba(37, 99, 235, 0.2);
-
-  transition:
-    transform 0.2s ease,
-    box-shadow 0.2s ease,
-    filter 0.2s ease;
-}
-
-.auth-button:hover {
-  transform: translateY(-2px);
-
-  filter: brightness(1.08);
-
-  box-shadow:
-    0 14px 30px rgba(37, 99, 235, 0.32);
-}
-
-.auth-button:active {
-  transform: translateY(0);
-}
-
-/* =========================================================
-   AUTH FOOTER
-   ========================================================= */
-
-.auth-footer {
-  margin: 23px 0 0;
-
-  color: #94a3b8;
-
-  text-align: center;
-
-  font-size: 14px;
-}
-
-.auth-link {
-  padding: 0;
-
-  border: none;
-  background: transparent;
-
-  color: #60a5fa;
-
-  font: inherit;
-  font-weight: 700;
-
-  cursor: pointer;
-
-  transition: color 0.2s ease;
-}
-
-.auth-link:hover {
-  color: #93c5fd;
-  text-decoration: underline;
-}
-
-/* =========================================================
-   LOGIN PAGE - DIFFERENT LOOK
-   ========================================================= */
-
-.login-card {
-  border-color: rgba(59, 130, 246, 0.18);
-}
-
-.login-card .auth-logo {
-  background:
-    linear-gradient(
-      135deg,
-      #2563eb,
-      #06b6d4
-    );
-}
-
-/* =========================================================
-   REGISTER PAGE - DIFFERENT LOOK
-   ========================================================= */
-
-.register-card {
-  border-color: rgba(124, 58, 237, 0.2);
-}
-
-.register-card .auth-logo {
-  background:
-    linear-gradient(
-      135deg,
-      #7c3aed,
-      #ec4899
-    );
-}
-
-/* =========================================================
-   JOIN WORKSPACE PAGE
-   ========================================================= */
-
-.join-card {
-  max-width: 500px;
-
-  border-color: rgba(34, 197, 94, 0.15);
-}
-
-.join-card .auth-logo {
-  background:
-    linear-gradient(
-      135deg,
-      #059669,
-      #2563eb
-    );
-}
-
-.join-card .auth-title {
-  font-size: 28px;
-}
-
-/* =========================================================
-   SECONDARY BUTTON
-   ========================================================= */
-
-.auth-secondary-button {
-  width: 100%;
-
-  padding: 12px;
-
-  margin-top: 14px;
-
-  border: 1px solid #475569;
-  border-radius: 11px;
-
-  background: rgba(15, 23, 42, 0.5);
-
-  color: #cbd5e1;
-
-  font-size: 14px;
-  font-weight: 600;
-
-  cursor: pointer;
-
-  transition:
-    background 0.2s ease,
-    border-color 0.2s ease,
-    color 0.2s ease;
-}
-
-.auth-secondary-button:hover {
-  background: #1e293b;
-  border-color: #64748b;
-  color: #ffffff;
-}
-
-/* =========================================================
-   WORKSPACE
-   ========================================================= */
-
-.workspace-shell {
-  min-height: 100vh;
-
-  background:
-    radial-gradient(
-      circle at top right,
-      rgba(37, 99, 235, 0.08),
-      transparent 25%
-    ),
-    #020617;
-}
-
-/* =========================================================
-   NAVIGATION
-   ========================================================= */
-
-.workspace-nav {
-  background:
-    linear-gradient(
-      180deg,
       #0f172a,
-      #0b1120
+      #111827
     );
 
-  border: 1px solid #1e293b;
+  padding: 18px;
 
-  border-radius: 14px;
+  border-radius: 16px;
 
-  padding: 16px;
+  margin-bottom: 20px;
+
+  border: 1px solid
+    rgba(148, 163, 184, 0.1);
 
   box-shadow:
-    0 12px 35px rgba(0, 0, 0, 0.25);
+    0 15px 40px rgba(0, 0, 0, 0.25);
 }
 
-.workspace-nav h3 {
-  margin: 0 0 15px;
 
-  color: #ffffff;
+/* =====================================
+   BRAND
+===================================== */
 
-  font-size: 18px;
+.workspace-brand {
+  margin: 0 0 6px;
+
+  color: #f8fafc;
+
+  font-size: 20px;
+  font-weight: 800;
 }
 
-.workspace-nav-label {
-  margin: 0 0 12px;
+
+.workspace-label {
+  margin: 0 0 16px;
 
   color: #64748b;
 
   font-size: 12px;
-  font-weight: 700;
 
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+
+  letter-spacing: 1.5px;
 }
 
-/* =========================================================
-   NAVIGATION BUTTONS
-   ========================================================= */
+
+/* =====================================
+   NAV BUTTON
+===================================== */
 
 .workspace-nav-button {
   width: 100%;
+
+  display: flex;
+  align-items: center;
+
+  gap: 10px;
 
   padding: 12px 14px;
 
   margin-bottom: 8px;
 
   border: 1px solid transparent;
+
   border-radius: 10px;
 
   background: #1e293b;
@@ -476,15 +119,22 @@ body {
     border-color 0.2s ease;
 }
 
-.workspace-nav-button:hover {
-  background: #263449;
 
-  color: #ffffff;
+.workspace-nav-button span {
+  font-size: 17px;
+}
+
+
+.workspace-nav-button:hover {
+  background: #334155;
+
+  color: white;
 
   transform: translateX(2px);
 }
 
-.workspace-nav-button.active {
+
+.workspace-nav-active {
   background:
     linear-gradient(
       135deg,
@@ -492,94 +142,69 @@ body {
       #4f46e5
     );
 
-  color: #ffffff;
+  color: white;
 
-  font-weight: 700;
+  border-color:
+    rgba(147, 197, 253, 0.2);
 
   box-shadow:
-    0 8px 20px rgba(37, 99, 235, 0.2);
+    0 8px 20px
+    rgba(37, 99, 235, 0.25);
 }
 
-/* =========================================================
-   LEAVE WORKSPACE
-   ========================================================= */
 
-.leave-workspace-button {
+/* =====================================
+   LEAVE BUTTON
+===================================== */
+
+.workspace-leave-button {
   width: 100%;
 
-  margin-top: 10px;
+  margin-top: 12px;
 
-  padding: 11px;
+  padding: 11px 14px;
 
-  border: none;
+  border: 1px solid
+    rgba(248, 113, 113, 0.2);
+
   border-radius: 10px;
 
   background:
-    linear-gradient(
-      135deg,
-      #dc2626,
-      #b91c1c
-    );
+    rgba(220, 38, 38, 0.12);
 
-  color: white;
+  color: #fca5a5;
+
+  cursor: pointer;
 
   font-size: 14px;
   font-weight: 600;
 
-  cursor: pointer;
-
   transition:
-    transform 0.2s ease,
-    filter 0.2s ease;
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
 }
 
-.leave-workspace-button:hover {
+
+.workspace-leave-button:hover {
+  background: #dc2626;
+
+  color: white;
+
   transform: translateY(-1px);
-  filter: brightness(1.08);
 }
 
-/* =========================================================
+
+/* =====================================
    RESPONSIVE
-   ========================================================= */
+===================================== */
 
-@media (max-width: 600px) {
-  .auth-page {
-    padding: 16px;
+@media (max-width: 700px) {
+  .workspace-navigation {
+    padding: 14px;
   }
 
-  .auth-card {
-    padding: 28px 22px;
-
-    border-radius: 20px;
-  }
-
-  .auth-title {
-    font-size: 25px;
-  }
-
-  .auth-logo {
-    width: 60px;
-    height: 60px;
-
-    font-size: 28px;
+  .workspace-nav-button {
+    padding: 11px 12px;
   }
 }
-
-@media (max-width: 400px) {
-  .auth-card {
-    padding: 24px 18px;
-  }
-
-  .auth-title {
-    font-size: 23px;
-  }
-
-  .auth-input {
-    padding: 12px;
-  }
-
-  .auth-button {
-    padding: 13px;
-  }
-}
-

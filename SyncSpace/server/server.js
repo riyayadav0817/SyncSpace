@@ -23,16 +23,15 @@ app.get("/", (req, res) => {
   res.send("SyncSpace Server Running");
 });
 
-// =========================
-// ROOM DATA
-// =========================
-
 const roomUsers = {};
 const roomStates = {};
 
-// =========================
-// SOCKET CONNECTION
-// =========================
+const createRoomState = () => ({
+  lines: [],
+  texts: [],
+  code:
+    '// Welcome to SyncSpace\nconsole.log("Hello SyncSpace!");',
+});
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
@@ -41,49 +40,82 @@ io.on("connection", (socket) => {
   // JOIN ROOM
   // =========================
 
-  socket.on("join-room", (roomId) => {
+  socket.on("join-room", (data) => {
+    const roomId =
+      typeof data === "string"
+        ? data.trim()
+        : data?.roomId?.trim();
+
+    const name =
+      typeof data === "object" && data?.name
+        ? data.name.trim()
+        : `User-${socket.id.slice(0, 4)}`;
+
     if (!roomId) return;
+
+    if (
+      socket.currentRoom &&
+      socket.currentRoom !== roomId
+    ) {
+      const oldRoom = socket.currentRoom;
+
+      socket.leave(oldRoom);
+
+      if (roomUsers[oldRoom]) {
+        roomUsers[oldRoom] =
+          roomUsers[oldRoom].filter(
+            (user) =>
+              user.socketId !== socket.id
+          );
+
+        io.to(oldRoom).emit(
+          "room-users",
+          roomUsers[oldRoom]
+        );
+
+        if (
+          roomUsers[oldRoom].length === 0
+        ) {
+          delete roomUsers[oldRoom];
+        }
+      }
+    }
+
+    socket.currentRoom = roomId;
 
     socket.join(roomId);
 
-    // Create users list
     if (!roomUsers[roomId]) {
       roomUsers[roomId] = [];
     }
 
-    // Prevent duplicate user
-    const alreadyJoined = roomUsers[roomId].some(
-      (user) => user.socketId === socket.id
-    );
+    roomUsers[roomId] =
+      roomUsers[roomId].filter(
+        (user) =>
+          user.socketId !== socket.id
+      );
 
-    if (!alreadyJoined) {
-      roomUsers[roomId].push({
-        socketId: socket.id,
-        name: `User-${socket.id.slice(0, 4)}`,
-      });
-    }
+    roomUsers[roomId].push({
+      socketId: socket.id,
+      name:
+        name ||
+        `User-${socket.id.slice(0, 4)}`,
+    });
 
-    // Create room state
     if (!roomStates[roomId]) {
-      roomStates[roomId] = {
-        lines: [],
-        texts: [],
-        code:
-          '// Welcome to SyncSpace\nconsole.log("Hello SyncSpace!");',
-      };
+      roomStates[roomId] =
+        createRoomState();
     }
 
     console.log(
-      `User ${socket.id} joined room: ${roomId}`
+      `${name} joined room: ${roomId}`
     );
 
-    // Send updated users to everyone
     io.to(roomId).emit(
       "room-users",
       roomUsers[roomId]
     );
 
-    // Send existing room state ONLY to new user
     socket.emit(
       "room-state",
       roomStates[roomId]
@@ -91,89 +123,205 @@ io.on("connection", (socket) => {
   });
 
   // =========================
-  // WHITEBOARD - DRAW LINE
+  // DRAW LINE
   // =========================
 
   socket.on("draw-line", (data) => {
-    if (!data?.roomId) return;
+    if (
+      !data?.roomId ||
+      !Array.isArray(data.points)
+    ) {
+      return;
+    }
 
-    if (!roomStates[data.roomId]) {
-      roomStates[data.roomId] = {
-        lines: [],
-        texts: [],
-        code: "",
-      };
+    const roomId = data.roomId;
+
+    if (!roomStates[roomId]) {
+      roomStates[roomId] =
+        createRoomState();
     }
 
     const newLine = {
+      id:
+        data.id ||
+        `${socket.id}-${Date.now()}`,
       points: data.points,
-      color: data.color,
-      brushSize: data.brushSize,
+      color:
+        data.color || "#2563eb",
+      brushSize:
+        Number(data.brushSize) || 4,
     };
 
-    // Save line on server
-    roomStates[data.roomId].lines.push(newLine);
+    roomStates[roomId].lines.push(
+      newLine
+    );
 
-    // Send to other users
-    socket.to(data.roomId).emit(
+    socket.to(roomId).emit(
       "draw-line",
       newLine
     );
   });
 
   // =========================
-  // WHITEBOARD - ADD TEXT
+  // UNDO
   // =========================
 
-  socket.on("add-text", (data) => {
-    if (!data?.roomId || !data?.text) {
-      return;
-    }
+  socket.on("undo", (data) => {
+    if (!data?.roomId) return;
 
-    if (!roomStates[data.roomId]) {
-      roomStates[data.roomId] = {
-        lines: [],
-        texts: [],
-        code: "",
-      };
-    }
+    const roomId = data.roomId;
 
-    // Save text on server
-    roomStates[data.roomId].texts.push(
-      data.text
-    );
+    if (!roomStates[roomId]) return;
 
-    // Send to other users
-    socket.to(data.roomId).emit(
-      "add-text",
+    const lines =
+      roomStates[roomId].lines;
+
+    if (lines.length === 0) return;
+
+    const removedLine =
+      lines.pop();
+
+    io.to(roomId).emit(
+      "undo",
       {
-        text: data.text,
+        line: removedLine,
       }
     );
   });
 
   // =========================
-  // WHITEBOARD - DELETE TEXT
+  // REDO
+  // =========================
+
+  socket.on("redo", (data) => {
+    if (
+      !data?.roomId ||
+      !data.line
+    ) {
+      return;
+    }
+
+    const roomId = data.roomId;
+
+    if (!roomStates[roomId]) {
+      roomStates[roomId] =
+        createRoomState();
+    }
+
+    roomStates[roomId].lines.push(
+      data.line
+    );
+
+    io.to(roomId).emit(
+      "redo",
+      {
+        line: data.line,
+      }
+    );
+  });
+
+  // =========================
+  // ERASE LINE
+  // =========================
+
+  socket.on("erase-line", (data) => {
+    if (
+      !data?.roomId ||
+      !data.lineId
+    ) {
+      return;
+    }
+
+    const roomId = data.roomId;
+
+    if (!roomStates[roomId]) return;
+
+    const index =
+      roomStates[roomId].lines.findIndex(
+        (line) =>
+          line.id === data.lineId
+      );
+
+    if (index === -1) return;
+
+    const removedLine =
+      roomStates[roomId].lines.splice(
+        index,
+        1
+      )[0];
+
+    io.to(roomId).emit(
+      "erase-line",
+      {
+        lineId: data.lineId,
+        line: removedLine,
+      }
+    );
+  });
+
+  // =========================
+  // ADD TEXT
+  // =========================
+
+  socket.on("add-text", (data) => {
+    if (
+      !data?.roomId ||
+      !data?.text
+    ) {
+      return;
+    }
+
+    const roomId = data.roomId;
+    const text = data.text;
+
+    if (!roomStates[roomId]) {
+      roomStates[roomId] =
+        createRoomState();
+    }
+
+    const exists =
+      roomStates[roomId].texts.some(
+        (item) =>
+          item.id === text.id
+      );
+
+    if (!exists) {
+      roomStates[roomId].texts.push(
+        text
+      );
+    }
+
+    socket.to(roomId).emit(
+      "add-text",
+      {
+        text,
+      }
+    );
+  });
+
+  // =========================
+  // DELETE TEXT
   // =========================
 
   socket.on("delete-text", (data) => {
     if (
       !data?.roomId ||
-      !data?.textId
+      !data.textId
     ) {
       return;
     }
 
-    if (roomStates[data.roomId]) {
-      roomStates[data.roomId].texts =
-        roomStates[data.roomId].texts.filter(
-          (text) =>
-            text.id !== data.textId
-        );
-    }
+    const roomId = data.roomId;
 
-    // Notify other users
-    socket.to(data.roomId).emit(
+    if (!roomStates[roomId]) return;
+
+    roomStates[roomId].texts =
+      roomStates[roomId].texts.filter(
+        (text) =>
+          text.id !== data.textId
+      );
+
+    io.to(roomId).emit(
       "delete-text",
       {
         textId: data.textId,
@@ -182,76 +330,48 @@ io.on("connection", (socket) => {
   });
 
   // =========================
-  // WHITEBOARD - ERASE LINE
-  // =========================
-
-  socket.on("erase-line", (data) => {
-    if (
-      !data?.roomId ||
-      typeof data.lineIndex !== "number"
-    ) {
-      return;
-    }
-
-    if (roomStates[data.roomId]) {
-      roomStates[data.roomId].lines =
-        roomStates[data.roomId].lines.filter(
-          (_, index) =>
-            index !== data.lineIndex
-        );
-    }
-
-    // Notify other users
-    socket.to(data.roomId).emit(
-      "erase-line",
-      {
-        lineIndex: data.lineIndex,
-      }
-    );
-  });
-
-  // =========================
-  // WHITEBOARD - CLEAR
+  // CLEAR BOARD
   // =========================
 
   socket.on("clear-board", (roomId) => {
     if (!roomId) return;
 
-    if (roomStates[roomId]) {
-      roomStates[roomId].lines = [];
-      roomStates[roomId].texts = [];
-    }
+    if (!roomStates[roomId]) return;
 
-    // Notify other users
-    socket.to(roomId).emit(
+    roomStates[roomId].lines = [];
+    roomStates[roomId].texts = [];
+
+    io.to(roomId).emit(
       "clear-board"
     );
   });
 
   // =========================
-  // CODE EDITOR
+  // CODE
   // =========================
 
   socket.on("code-change", (data) => {
     if (!data?.roomId) return;
 
-    if (!roomStates[data.roomId]) {
-      roomStates[data.roomId] = {
-        lines: [],
-        texts: [],
-        code: "",
-      };
+    const roomId = data.roomId;
+
+    if (!roomStates[roomId]) {
+      roomStates[roomId] =
+        createRoomState();
     }
 
-    // Save latest code
-    roomStates[data.roomId].code =
-      data.code;
+    const newCode =
+      typeof data.code === "string"
+        ? data.code
+        : "";
 
-    // Send to other users
-    socket.to(data.roomId).emit(
+    roomStates[roomId].code =
+      newCode;
+
+    socket.to(roomId).emit(
       "code-update",
       {
-        code: data.code,
+        code: newCode,
       }
     );
   });
@@ -268,8 +388,10 @@ io.on("connection", (socket) => {
       return;
     }
 
+    const roomId = data.roomId;
+
     const user =
-      roomUsers[data.roomId]?.find(
+      roomUsers[roomId]?.find(
         (member) =>
           member.socketId === socket.id
       );
@@ -278,7 +400,7 @@ io.on("connection", (socket) => {
       ? user.name
       : `User-${socket.id.slice(0, 4)}`;
 
-    io.to(data.roomId).emit(
+    io.to(roomId).emit(
       "chat-message",
       {
         user: userName,
@@ -297,39 +419,36 @@ io.on("connection", (socket) => {
       socket.id
     );
 
-    for (const roomId in roomUsers) {
-      // Remove user
+    const roomId =
+      socket.currentRoom;
+
+    if (!roomId) return;
+
+    if (roomUsers[roomId]) {
       roomUsers[roomId] =
         roomUsers[roomId].filter(
           (user) =>
             user.socketId !== socket.id
         );
 
-      // Update participants
       io.to(roomId).emit(
         "room-users",
         roomUsers[roomId]
       );
 
-      // Delete empty room users
       if (
         roomUsers[roomId].length === 0
       ) {
         delete roomUsers[roomId];
-
-        // Delete room state also
-        delete roomStates[roomId];
       }
     }
+
+    socket.currentRoom = null;
   });
 });
 
-// =========================
-// START SERVER
-// =========================
-
 server.listen(5000, () => {
   console.log(
-    "Server running on port 5000"
+    "🚀 SyncSpace Server running on port 5000"
   );
 });
