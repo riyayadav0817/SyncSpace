@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { Stage, Layer, Line, Text } from "react-konva";
+import {
+  Stage,
+  Layer,
+  Line,
+  Text,
+} from "react-konva";
 
 function Whiteboard({
   joinedRoom,
@@ -12,17 +17,19 @@ function Whiteboard({
   isDrawing,
   setIsDrawing,
   socket,
+  history,
+  setHistory,
+  redoStack,
+  setRedoStack,
 }) {
   const [tool, setTool] = useState("pen");
+
   const [texts, setTexts] = useState([]);
+
   const [textInput, setTextInput] = useState("");
 
-  // Undo / Redo
-  const [undoStack, setUndoStack] = useState([]);
-  const [redoStack, setRedoStack] = useState([]);
-
   // =========================
-  // ROOM STATE
+  // RECEIVE ROOM STATE
   // =========================
 
   useEffect(() => {
@@ -31,56 +38,105 @@ function Whiteboard({
 
       if (Array.isArray(state.lines)) {
         setLines(state.lines);
+        setHistory(state.lines);
+        setRedoStack([]);
       }
 
       if (Array.isArray(state.texts)) {
         setTexts(state.texts);
       }
-
-      // Code state is handled by CodeEditor.
     };
 
-    socket.on("room-state", handleRoomState);
+    socket.on(
+      "room-state",
+      handleRoomState
+    );
 
     return () => {
-      socket.off("room-state", handleRoomState);
+      socket.off(
+        "room-state",
+        handleRoomState
+      );
     };
-  }, [socket, setLines]);
+  }, [
+    socket,
+    setLines,
+    setHistory,
+    setRedoStack,
+  ]);
 
   // =========================
-  // LIVE SOCKET EVENTS
+  // RECEIVE LIVE EVENTS
   // =========================
 
   useEffect(() => {
+    // DRAW LINE
+
+    const handleDrawLine = (data) => {
+      if (!data?.points) return;
+
+      const newLine = {
+        points: data.points,
+        color:
+          data.color || "#2563eb",
+        brushSize:
+          data.brushSize || 4,
+      };
+
+      setLines((oldLines) => [
+        ...oldLines,
+        newLine,
+      ]);
+
+      setHistory((oldHistory) => [
+        ...oldHistory,
+        newLine,
+      ]);
+
+      setRedoStack([]);
+    };
+
+    // ADD TEXT
+
     const handleAddText = (data) => {
       if (!data?.text) return;
 
       setTexts((oldTexts) => {
         const exists = oldTexts.some(
-          (item) => item.id === data.text.id
+          (item) =>
+            item.id === data.text.id
         );
 
         if (exists) {
           return oldTexts;
         }
 
-        return [...oldTexts, data.text];
+        return [
+          ...oldTexts,
+          data.text,
+        ];
       });
     };
+
+    // DELETE TEXT
 
     const handleDeleteText = (data) => {
       if (!data?.textId) return;
 
       setTexts((oldTexts) =>
         oldTexts.filter(
-          (item) => item.id !== data.textId
+          (item) =>
+            item.id !== data.textId
         )
       );
     };
 
+    // ERASE LINE
+
     const handleEraseLine = (data) => {
       if (
-        typeof data?.lineIndex !== "number"
+        typeof data?.lineIndex !==
+        "number"
       ) {
         return;
       }
@@ -93,120 +149,117 @@ function Whiteboard({
       );
     };
 
-    const handleDrawLine = (data) => {
-      if (!data?.points) return;
+    // REMOTE UNDO
+
+    const handleUndo = () => {
+      setLines((oldLines) => {
+        if (oldLines.length === 0) {
+          return oldLines;
+        }
+
+        return oldLines.slice(0, -1);
+      });
+    };
+
+    // REMOTE REDO
+
+    const handleRedo = (data) => {
+      if (!data?.line) return;
 
       setLines((oldLines) => [
         ...oldLines,
-        {
-          points: data.points,
-          color: data.color,
-          brushSize: data.brushSize,
-        },
+        data.line,
       ]);
     };
+
+    // CLEAR
 
     const handleClearBoard = () => {
       setLines([]);
       setTexts([]);
-      setUndoStack([]);
+      setHistory([]);
       setRedoStack([]);
+      setIsDrawing(false);
     };
 
-    socket.on("add-text", handleAddText);
-    socket.on("delete-text", handleDeleteText);
-    socket.on("erase-line", handleEraseLine);
-    socket.on("draw-line", handleDrawLine);
-    socket.on("clear-board", handleClearBoard);
+    socket.on(
+      "draw-line",
+      handleDrawLine
+    );
+
+    socket.on(
+      "add-text",
+      handleAddText
+    );
+
+    socket.on(
+      "delete-text",
+      handleDeleteText
+    );
+
+    socket.on(
+      "erase-line",
+      handleEraseLine
+    );
+
+    socket.on(
+      "undo",
+      handleUndo
+    );
+
+    socket.on(
+      "redo",
+      handleRedo
+    );
+
+    socket.on(
+      "clear-board",
+      handleClearBoard
+    );
 
     return () => {
-      socket.off("add-text", handleAddText);
-      socket.off("delete-text", handleDeleteText);
-      socket.off("erase-line", handleEraseLine);
-      socket.off("draw-line", handleDrawLine);
-      socket.off("clear-board", handleClearBoard);
+      socket.off(
+        "draw-line",
+        handleDrawLine
+      );
+
+      socket.off(
+        "add-text",
+        handleAddText
+      );
+
+      socket.off(
+        "delete-text",
+        handleDeleteText
+      );
+
+      socket.off(
+        "erase-line",
+        handleEraseLine
+      );
+
+      socket.off(
+        "undo",
+        handleUndo
+      );
+
+      socket.off(
+        "redo",
+        handleRedo
+      );
+
+      socket.off(
+        "clear-board",
+        handleClearBoard
+      );
     };
-  }, [socket, setLines]);
-
-  // =========================
-  // SAVE HISTORY
-  // =========================
-
-  const saveHistory = () => {
-    setUndoStack((oldStack) => [
-      ...oldStack,
-      {
-        lines: [...lines],
-        texts: [...texts],
-      },
-    ]);
-
-    setRedoStack([]);
-  };
-
-  // =========================
-  // UNDO
-  // =========================
-
-  const undo = () => {
-    if (!joinedRoom) {
-      return;
-    }
-
-    if (undoStack.length === 0) {
-      return;
-    }
-
-    const previousState =
-      undoStack[undoStack.length - 1];
-
-    setRedoStack((oldStack) => [
-      ...oldStack,
-      {
-        lines: [...lines],
-        texts: [...texts],
-      },
-    ]);
-
-    setUndoStack((oldStack) =>
-      oldStack.slice(0, -1)
-    );
-
-    setLines(previousState.lines);
-    setTexts(previousState.texts);
-  };
-
-  // =========================
-  // REDO
-  // =========================
-
-  const redo = () => {
-    if (!joinedRoom) {
-      return;
-    }
-
-    if (redoStack.length === 0) {
-      return;
-    }
-
-    const nextState =
-      redoStack[redoStack.length - 1];
-
-    setUndoStack((oldStack) => [
-      ...oldStack,
-      {
-        lines: [...lines],
-        texts: [...texts],
-      },
-    ]);
-
-    setRedoStack((oldStack) =>
-      oldStack.slice(0, -1)
-    );
-
-    setLines(nextState.lines);
-    setTexts(nextState.texts);
-  };
+  }, [
+    socket,
+    setLines,
+    setHistory,
+    setRedoStack,
+    setIsDrawing,
+  ]);
 
   // =========================
   // START DRAWING
@@ -214,11 +267,14 @@ function Whiteboard({
 
   const startDrawing = (event) => {
     if (!joinedRoom) {
-      alert("Please join a room first");
+      alert(
+        "Please join a room first"
+      );
       return;
     }
 
-    const stage = event.target.getStage();
+    const stage =
+      event.target.getStage();
 
     if (!stage) return;
 
@@ -228,18 +284,19 @@ function Whiteboard({
     if (!point) return;
 
     // =========================
-    // TEXT TOOL
+    // TEXT
     // =========================
 
     if (tool === "text") {
-      const text = textInput.trim();
+      const text =
+        textInput.trim();
 
       if (!text) {
-        alert("Enter some text first");
+        alert(
+          "Enter some text first"
+        );
         return;
       }
-
-      saveHistory();
 
       const newText = {
         id: `${socket.id}-${Date.now()}`,
@@ -247,10 +304,11 @@ function Whiteboard({
         x: point.x,
         y: point.y,
         color,
-        fontSize: Math.max(
-          12,
-          brushSize * 4
-        ),
+        fontSize:
+          Math.max(
+            12,
+            brushSize * 4
+          ),
       };
 
       setTexts((oldTexts) => [
@@ -258,10 +316,13 @@ function Whiteboard({
         newText,
       ]);
 
-      socket.emit("add-text", {
-        roomId: joinedRoom,
-        text: newText,
-      });
+      socket.emit(
+        "add-text",
+        {
+          roomId: joinedRoom,
+          text: newText,
+        }
+      );
 
       setTextInput("");
 
@@ -280,21 +341,24 @@ function Whiteboard({
     // PEN
     // =========================
 
-    saveHistory();
-
     setIsDrawing(true);
+
+    const newLine = {
+      points: [
+        point.x,
+        point.y,
+      ],
+      color,
+      brushSize,
+    };
 
     setLines((oldLines) => [
       ...oldLines,
-      {
-        points: [
-          point.x,
-          point.y,
-        ],
-        color,
-        brushSize,
-      },
+      newLine,
     ]);
+
+    // New drawing clears redo
+    setRedoStack([]);
   };
 
   // =========================
@@ -366,15 +430,100 @@ function Whiteboard({
         return currentLines;
       }
 
-      socket.emit("draw-line", {
-        roomId: joinedRoom,
-        points: lastLine.points,
-        color: lastLine.color,
-        brushSize: lastLine.brushSize,
-      });
+      socket.emit(
+        "draw-line",
+        {
+          roomId: joinedRoom,
+          points: lastLine.points,
+          color: lastLine.color,
+          brushSize:
+            lastLine.brushSize,
+        }
+      );
+
+      setHistory((oldHistory) => [
+        ...oldHistory,
+        lastLine,
+      ]);
 
       return currentLines;
     });
+  };
+
+  // =========================
+  // UNDO
+  // =========================
+
+  const undo = () => {
+    if (
+      !joinedRoom ||
+      lines.length === 0
+    ) {
+      return;
+    }
+
+    const lastLine =
+      lines[lines.length - 1];
+
+    setRedoStack((oldRedo) => [
+      ...oldRedo,
+      lastLine,
+    ]);
+
+    setLines((oldLines) =>
+      oldLines.slice(0, -1)
+    );
+
+    setHistory((oldHistory) =>
+      oldHistory.slice(0, -1)
+    );
+
+    socket.emit(
+      "undo",
+      {
+        roomId: joinedRoom,
+      }
+    );
+  };
+
+  // =========================
+  // REDO
+  // =========================
+
+  const redo = () => {
+    if (
+      !joinedRoom ||
+      redoStack.length === 0
+    ) {
+      return;
+    }
+
+    const lastRedo =
+      redoStack[
+        redoStack.length - 1
+      ];
+
+    setLines((oldLines) => [
+      ...oldLines,
+      lastRedo,
+    ]);
+
+    setHistory((oldHistory) => [
+      ...oldHistory,
+      lastRedo,
+    ]);
+
+    setRedoStack((oldRedo) =>
+      oldRedo.slice(0, -1)
+    );
+
+    socket.emit(
+      "redo",
+      {
+        roomId: joinedRoom,
+        line: lastRedo,
+      }
+    );
   };
 
   // =========================
@@ -382,15 +531,24 @@ function Whiteboard({
   // =========================
 
   const eraseLine = (index) => {
-    if (tool !== "eraser") {
+    if (
+      tool !== "eraser" ||
+      !joinedRoom
+    ) {
       return;
     }
 
-    if (!joinedRoom) {
+    const lineToDelete =
+      lines[index];
+
+    if (!lineToDelete) {
       return;
     }
 
-    saveHistory();
+    setHistory((oldHistory) => [
+      ...oldHistory,
+      lineToDelete,
+    ]);
 
     setLines((oldLines) =>
       oldLines.filter(
@@ -399,10 +557,15 @@ function Whiteboard({
       )
     );
 
-    socket.emit("erase-line", {
-      roomId: joinedRoom,
-      lineIndex: index,
-    });
+    setRedoStack([]);
+
+    socket.emit(
+      "erase-line",
+      {
+        roomId: joinedRoom,
+        lineIndex: index,
+      }
+    );
   };
 
   // =========================
@@ -414,18 +577,20 @@ function Whiteboard({
       return;
     }
 
-    saveHistory();
-
     setTexts((oldTexts) =>
       oldTexts.filter(
-        (item) => item.id !== id
+        (item) =>
+          item.id !== id
       )
     );
 
-    socket.emit("delete-text", {
-      roomId: joinedRoom,
-      textId: id,
-    });
+    socket.emit(
+      "delete-text",
+      {
+        roomId: joinedRoom,
+        textId: id,
+      }
+    );
   };
 
   // =========================
@@ -434,38 +599,31 @@ function Whiteboard({
 
   const clearBoard = () => {
     if (!joinedRoom) {
-      alert("Please join a room first");
+      alert(
+        "Please join a room first"
+      );
       return;
     }
 
-    if (
-      lines.length === 0 &&
-      texts.length === 0
-    ) {
+    const confirmed =
+      window.confirm(
+        "Clear the entire board?"
+      );
+
+    if (!confirmed) {
       return;
     }
-
-    saveHistory();
 
     setLines([]);
     setTexts([]);
+    setHistory([]);
+    setRedoStack([]);
     setIsDrawing(false);
 
     socket.emit(
       "clear-board",
       joinedRoom
     );
-  };
-
-  // =========================
-  // KEYBOARD
-  // =========================
-
-  const handleTextKeyDown = (event) => {
-    if (event.key === "Escape") {
-      setTextInput("");
-      setTool("pen");
-    }
   };
 
   // =========================
@@ -494,13 +652,15 @@ function Whiteboard({
           marginBottom: "15px",
         }}
       >
-        <h2>🖍 Whiteboard</h2>
+        <h2>
+          🖍 Whiteboard
+        </h2>
 
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "8px",
+            gap: "10px",
             flexWrap: "wrap",
           }}
         >
@@ -512,14 +672,16 @@ function Whiteboard({
               setTool("pen")
             }
             style={{
-              padding: "8px 14px",
+              padding:
+                "8px 14px",
               background:
                 tool === "pen"
                   ? "#2563eb"
                   : "#475569",
               color: "white",
               border: "none",
-              borderRadius: "6px",
+              borderRadius:
+                "6px",
               cursor: "pointer",
             }}
           >
@@ -534,14 +696,16 @@ function Whiteboard({
               setTool("eraser")
             }
             style={{
-              padding: "8px 14px",
+              padding:
+                "8px 14px",
               background:
                 tool === "eraser"
                   ? "#f59e0b"
                   : "#475569",
               color: "white",
               border: "none",
-              borderRadius: "6px",
+              borderRadius:
+                "6px",
               cursor: "pointer",
             }}
           >
@@ -556,14 +720,16 @@ function Whiteboard({
               setTool("text")
             }
             style={{
-              padding: "8px 14px",
+              padding:
+                "8px 14px",
               background:
                 tool === "text"
                   ? "#16a34a"
                   : "#475569",
               color: "white",
               border: "none",
-              borderRadius: "6px",
+              borderRadius:
+                "6px",
               cursor: "pointer",
             }}
           >
@@ -576,22 +742,23 @@ function Whiteboard({
             type="button"
             onClick={undo}
             disabled={
-              undoStack.length === 0
+              lines.length === 0
             }
             style={{
-              padding: "8px 14px",
-              background: "#6366f1",
+              padding:
+                "8px 14px",
+              background:
+                lines.length === 0
+                  ? "#334155"
+                  : "#7c3aed",
               color: "white",
               border: "none",
-              borderRadius: "6px",
+              borderRadius:
+                "6px",
               cursor:
-                undoStack.length === 0
+                lines.length === 0
                   ? "not-allowed"
                   : "pointer",
-              opacity:
-                undoStack.length === 0
-                  ? 0.5
-                  : 1,
             }}
           >
             ↩️ Undo
@@ -606,19 +773,20 @@ function Whiteboard({
               redoStack.length === 0
             }
             style={{
-              padding: "8px 14px",
-              background: "#8b5cf6",
+              padding:
+                "8px 14px",
+              background:
+                redoStack.length === 0
+                  ? "#334155"
+                  : "#0891b2",
               color: "white",
               border: "none",
-              borderRadius: "6px",
+              borderRadius:
+                "6px",
               cursor:
                 redoStack.length === 0
                   ? "not-allowed"
                   : "pointer",
-              opacity:
-                redoStack.length === 0
-                  ? 0.5
-                  : 1,
             }}
           >
             ↪️ Redo
@@ -656,12 +824,15 @@ function Whiteboard({
               <option value={2}>
                 Small
               </option>
+
               <option value={4}>
                 Medium
               </option>
+
               <option value={8}>
                 Large
               </option>
+
               <option value={14}>
                 Extra Large
               </option>
@@ -672,13 +843,18 @@ function Whiteboard({
 
           <button
             type="button"
-            onClick={clearBoard}
+            onClick={
+              clearBoard
+            }
             style={{
-              padding: "8px 15px",
-              background: "#dc2626",
+              padding:
+                "8px 15px",
+              background:
+                "#dc2626",
               color: "white",
               border: "none",
-              borderRadius: "6px",
+              borderRadius:
+                "6px",
               cursor: "pointer",
             }}
           >
@@ -706,15 +882,14 @@ function Whiteboard({
                 event.target.value
               )
             }
-            onKeyDown={
-              handleTextKeyDown
-            }
             placeholder="Type text, then click the board"
             style={{
               flex: 1,
-              minWidth: "250px",
+              minWidth:
+                "250px",
               padding: "10px",
-              borderRadius: "6px",
+              borderRadius:
+                "6px",
               border: "none",
               outline: "none",
             }}
@@ -722,12 +897,15 @@ function Whiteboard({
 
           <span
             style={{
-              color: "#94a3b8",
+              color:
+                "#94a3b8",
               display: "flex",
-              alignItems: "center",
+              alignItems:
+                "center",
             }}
           >
-            Type text → click board
+            Then click the
+            board
           </span>
         </div>
       )}
@@ -765,7 +943,8 @@ function Whiteboard({
             cursor:
               tool === "text"
                 ? "text"
-                : tool === "eraser"
+                : tool ===
+                  "eraser"
                 ? "cell"
                 : "crosshair",
           }}
@@ -809,10 +988,14 @@ function Whiteboard({
               (item) => (
                 <Text
                   key={item.id}
-                  text={item.text}
+                  text={
+                    item.text
+                  }
                   x={item.x}
                   y={item.y}
-                  fill={item.color}
+                  fill={
+                    item.color
+                  }
                   fontSize={
                     item.fontSize
                   }
@@ -849,13 +1032,17 @@ function Whiteboard({
       {!joinedRoom && (
         <p
           style={{
-            textAlign: "center",
-            color: "#94a3b8",
-            marginTop: "15px",
+            textAlign:
+              "center",
+            color:
+              "#94a3b8",
+            marginTop:
+              "15px",
           }}
         >
           Join a room first,
-          then start drawing.
+          then start
+          drawing.
         </p>
       )}
 
@@ -864,9 +1051,12 @@ function Whiteboard({
       {joinedRoom && (
         <p
           style={{
-            textAlign: "center",
-            color: "#94a3b8",
-            marginTop: "12px",
+            textAlign:
+              "center",
+            color:
+              "#94a3b8",
+            marginTop:
+              "12px",
             marginBottom: 0,
           }}
         >
@@ -874,7 +1064,8 @@ function Whiteboard({
           <strong>
             {tool === "pen"
               ? "✏️ Pen"
-              : tool === "eraser"
+              : tool ===
+                "eraser"
               ? "🧹 Eraser"
               : "📝 Text"}
           </strong>
