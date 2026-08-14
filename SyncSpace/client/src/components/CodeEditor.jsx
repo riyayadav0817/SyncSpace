@@ -10,7 +10,10 @@ function CodeEditor({
   socket,
 }) {
   const editorRef = useRef(null);
+
   const [copied, setCopied] = useState(false);
+  const [output, setOutput] = useState("");
+  const [isRunning, setIsRunning] = useState(false);
 
   // =========================
   // RECEIVE CODE FROM SERVER
@@ -94,6 +97,120 @@ function CodeEditor({
     }
 
     handleCodeChange("");
+    setOutput("");
+  };
+
+  // =========================
+  // RUN JAVASCRIPT
+  // =========================
+
+  const runJavaScript = () => {
+    if (!code.trim()) {
+      setOutput("No code to run.");
+      return;
+    }
+
+    setIsRunning(true);
+    setOutput("");
+
+    const logs = [];
+
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+    const originalError = console.error;
+
+    try {
+      // Capture console.log
+      console.log = (...args) => {
+        logs.push(
+          args
+            .map((item) => {
+              if (typeof item === "object") {
+                try {
+                  return JSON.stringify(item, null, 2);
+                } catch {
+                  return String(item);
+                }
+              }
+
+              return String(item);
+            })
+            .join(" ")
+        );
+      };
+
+      // Capture console.warn
+      console.warn = (...args) => {
+        logs.push(
+          "⚠️ " +
+            args
+              .map((item) => String(item))
+              .join(" ")
+        );
+      };
+
+      // Capture console.error
+      console.error = (...args) => {
+        logs.push(
+          "❌ " +
+            args
+              .map((item) => String(item))
+              .join(" ")
+        );
+      };
+
+      // Basic JavaScript execution
+      // Day 26 mein proper sandbox/API execution add karenge.
+      const execute = new Function(code);
+
+      const result = execute();
+
+      if (result !== undefined) {
+        logs.push(String(result));
+      }
+
+      if (logs.length === 0) {
+        logs.push("✅ Code executed successfully.");
+      }
+
+      setOutput(logs.join("\n"));
+    } catch (error) {
+      setOutput(
+        `❌ ${error.name}: ${error.message}`
+      );
+    } finally {
+      console.log = originalLog;
+      console.warn = originalWarn;
+      console.error = originalError;
+
+      setIsRunning(false);
+    }
+  };
+
+  // =========================
+  // RUN CODE
+  // =========================
+
+  const runCode = () => {
+    if (language !== "javascript") {
+      setOutput(
+        `⚠️ ${language} execution is not available yet.\n\n` +
+          "Currently only JavaScript execution is supported.\n" +
+          "Python, C++, Java etc. will be added in the execution-engine phase."
+      );
+
+      return;
+    }
+
+    runJavaScript();
+  };
+
+  // =========================
+  // CLEAR OUTPUT
+  // =========================
+
+  const clearOutput = () => {
+    setOutput("");
   };
 
   // =========================
@@ -101,11 +218,23 @@ function CodeEditor({
   // =========================
 
   const handleEditorKeyDown = (event) => {
-    if ((event.ctrlKey || event.metaKey) && event.key === "s") {
+    if (
+      (event.ctrlKey || event.metaKey) &&
+      event.key === "s"
+    ) {
       event.preventDefault();
 
-      // Code is already stored in React state.
       console.log("Code saved locally");
+    }
+
+    // Ctrl + Enter = Run
+    if (
+      (event.ctrlKey || event.metaKey) &&
+      event.key === "Enter"
+    ) {
+      event.preventDefault();
+
+      runCode();
     }
   };
 
@@ -171,7 +300,9 @@ function CodeEditor({
 
           <select
             value={language}
-            onChange={(e) => setLanguage(e.target.value)}
+            onChange={(e) =>
+              setLanguage(e.target.value)
+            }
             style={{
               padding: "8px 12px",
               borderRadius: "6px",
@@ -180,15 +311,63 @@ function CodeEditor({
               cursor: "pointer",
             }}
           >
-            <option value="javascript">JavaScript</option>
-            <option value="typescript">TypeScript</option>
-            <option value="python">Python</option>
-            <option value="java">Java</option>
-            <option value="cpp">C++</option>
-            <option value="html">HTML</option>
-            <option value="css">CSS</option>
-            <option value="json">JSON</option>
+            <option value="javascript">
+              JavaScript
+            </option>
+
+            <option value="typescript">
+              TypeScript
+            </option>
+
+            <option value="python">
+              Python
+            </option>
+
+            <option value="java">
+              Java
+            </option>
+
+            <option value="cpp">
+              C++
+            </option>
+
+            <option value="html">
+              HTML
+            </option>
+
+            <option value="css">
+              CSS
+            </option>
+
+            <option value="json">
+              JSON
+            </option>
           </select>
+
+          {/* RUN */}
+
+          <button
+            type="button"
+            onClick={runCode}
+            disabled={isRunning}
+            style={{
+              padding: "8px 15px",
+              background: isRunning
+                ? "#475569"
+                : "#16a34a",
+              color: "white",
+              border: "none",
+              borderRadius: "6px",
+              cursor: isRunning
+                ? "not-allowed"
+                : "pointer",
+              fontWeight: "700",
+            }}
+          >
+            {isRunning
+              ? "⏳ Running..."
+              : "▶ Run"}
+          </button>
 
           {/* COPY */}
 
@@ -204,7 +383,9 @@ function CodeEditor({
               cursor: "pointer",
             }}
           >
-            {copied ? "✅ Copied" : "📋 Copy"}
+            {copied
+              ? "✅ Copied"
+              : "📋 Copy"}
           </button>
 
           {/* CLEAR */}
@@ -247,45 +428,110 @@ function CodeEditor({
           options={{
             fontSize: 15,
 
-            // Line numbers
             lineNumbers: "on",
 
-            // Minimap
             minimap: {
               enabled: false,
             },
 
-            // Layout
             automaticLayout: true,
 
-            // Word wrapping
             wordWrap: "on",
 
-            // Better editing
             smoothScrolling: true,
+
             cursorBlinking: "smooth",
 
-            // Suggestions
             suggestOnTriggerCharacters: true,
 
-            // Formatting
             formatOnPaste: true,
+
             formatOnType: true,
 
-            // Bracket matching
             bracketPairColorization: {
               enabled: true,
             },
 
-            // Scroll
             scrollBeyondLastLine: false,
 
-            // Save shortcut handled by us
             quickSuggestions: true,
           }}
-
           onKeyDown={handleEditorKeyDown}
         />
+      </div>
+
+      {/* =========================
+          OUTPUT
+      ========================= */}
+
+      <div
+        style={{
+          marginTop: "15px",
+          background: "#020617",
+          border: "1px solid #334155",
+          borderRadius: "8px",
+          overflow: "hidden",
+        }}
+      >
+        {/* OUTPUT HEADER */}
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "10px 14px",
+            borderBottom:
+              "1px solid #334155",
+          }}
+        >
+          <strong
+            style={{
+              color: "#e2e8f0",
+              fontSize: "14px",
+            }}
+          >
+            📤 Output
+          </strong>
+
+          <button
+            type="button"
+            onClick={clearOutput}
+            style={{
+              padding: "5px 10px",
+              background: "#334155",
+              color: "#cbd5e1",
+              border: "none",
+              borderRadius: "5px",
+              cursor: "pointer",
+              fontSize: "12px",
+            }}
+          >
+            Clear
+          </button>
+        </div>
+
+        {/* OUTPUT CONTENT */}
+
+        <pre
+          style={{
+            margin: 0,
+            padding: "15px",
+            minHeight: "100px",
+            maxHeight: "250px",
+            overflow: "auto",
+            color: output.startsWith("❌")
+              ? "#fca5a5"
+              : "#86efac",
+            fontFamily:
+              "Consolas, Monaco, monospace",
+            fontSize: "13px",
+            whiteSpace: "pre-wrap",
+          }}
+        >
+          {output ||
+            "▶ Click Run to execute your JavaScript code."}
+        </pre>
       </div>
 
       {/* =========================
@@ -306,26 +552,44 @@ function CodeEditor({
       >
         <span>
           Language:{" "}
-          <strong style={{ color: "white" }}>
+          <strong
+            style={{
+              color: "white",
+            }}
+          >
             {language}
           </strong>
         </span>
 
         <span>
           Lines:{" "}
-          <strong style={{ color: "white" }}>
+          <strong
+            style={{
+              color: "white",
+            }}
+          >
             {(code || "").split("\n").length}
           </strong>
         </span>
 
         <span>
           Characters:{" "}
-          <strong style={{ color: "white" }}>
+          <strong
+            style={{
+              color: "white",
+            }}
+          >
             {(code || "").length}
           </strong>
         </span>
 
-        <span>💡 Ctrl + S to save</span>
+        <span>
+          💡 Ctrl + Enter = Run
+        </span>
+
+        <span>
+          Ctrl + S = Save
+        </span>
       </div>
     </div>
   );

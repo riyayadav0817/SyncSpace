@@ -7,57 +7,34 @@ import Whiteboard from "./components/Whiteboard";
 import CodeEditor from "./components/CodeEditor";
 import Chat from "./components/Chat";
 import WorkspaceLayout from "./components/WorkspaceLayout";
+import DisconnectBanner from "./components/DisconnectBanner";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 import "./App.css";
 
-const socket = io("http://localhost:5000");
-
-// =====================================================
-// APP
-// =====================================================
+const socket = io("http://localhost:5000", {
+  autoConnect: true,
+});
 
 function App() {
-  // ===================================================
-  // CONNECTION
-  // ===================================================
-
   const [status, setStatus] = useState("Connecting...");
-
-  // ===================================================
-  // NAVIGATION
-  // ===================================================
-
   const [activeSection, setActiveSection] = useState("code");
-
-  // ===================================================
-  // USER
-  // ===================================================
 
   const [userName, setUserName] = useState(
     localStorage.getItem("syncspaceName") || ""
   );
 
-  // ===================================================
-  // ROOM
-  // ===================================================
-
   const [roomId, setRoomId] = useState(
     localStorage.getItem("syncspaceRoom") || ""
   );
 
-  const [joinedRoom, setJoinedRoom] = useState(
-    localStorage.getItem("syncspaceRoom") || ""
-  );
-
-  // ===================================================
-  // PARTICIPANTS
-  // ===================================================
+  const [joinedRoom, setJoinedRoom] = useState("");
 
   const [participants, setParticipants] = useState([]);
 
-  // ===================================================
-  // WHITEBOARD
-  // ===================================================
+  // =========================
+  // WHITEBOARD STATE
+  // =========================
 
   const [lines, setLines] = useState([]);
   const [color, setColor] = useState("#2563eb");
@@ -67,9 +44,9 @@ function App() {
   const [history, setHistory] = useState([]);
   const [redoStack, setRedoStack] = useState([]);
 
-  // ===================================================
-  // CODE
-  // ===================================================
+  // =========================
+  // CODE STATE
+  // =========================
 
   const [code, setCode] = useState(
     '// Welcome to SyncSpace\nconsole.log("Hello SyncSpace!");'
@@ -77,27 +54,51 @@ function App() {
 
   const [language, setLanguage] = useState("javascript");
 
-  // ===================================================
+  // =========================
   // SOCKET EVENTS
-  // ===================================================
+  // =========================
 
   useEffect(() => {
     const handleConnect = () => {
+      console.log("Socket connected:", socket.id);
+
       setStatus("Connected to SyncSpace Server ✅");
+
+      const savedRoom = localStorage.getItem("syncspaceRoom");
+      const savedName = localStorage.getItem("syncspaceName");
+
+      if (savedRoom && savedName) {
+        console.log("Rejoining room:", savedRoom);
+
+        socket.emit("join-room", {
+          roomId: savedRoom,
+          name: savedName,
+        });
+
+        setJoinedRoom(savedRoom);
+        setRoomId(savedRoom);
+        setUserName(savedName);
+      }
     };
 
     const handleDisconnect = () => {
+      console.log("Socket disconnected");
+
       setStatus("Disconnected from Server ❌");
       setParticipants([]);
     };
 
     const handleRoomUsers = (users) => {
+      console.log("Room users:", users);
+
       if (Array.isArray(users)) {
         setParticipants(users);
       }
     };
 
     const handleRoomState = (state) => {
+      console.log("Room state:", state);
+
       if (!state) return;
 
       if (Array.isArray(state.lines)) {
@@ -140,13 +141,15 @@ function App() {
 
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
+
     socket.on("room-users", handleRoomUsers);
     socket.on("room-state", handleRoomState);
+
     socket.on("draw-line", handleDrawLine);
     socket.on("clear-board", handleClearBoard);
+
     socket.on("code-update", handleCodeUpdate);
 
-    // If already connected
     if (socket.connected) {
       handleConnect();
     }
@@ -154,17 +157,20 @@ function App() {
     return () => {
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);
+
       socket.off("room-users", handleRoomUsers);
       socket.off("room-state", handleRoomState);
+
       socket.off("draw-line", handleDrawLine);
       socket.off("clear-board", handleClearBoard);
+
       socket.off("code-update", handleCodeUpdate);
     };
   }, []);
 
-  // ===================================================
+  // =========================
   // JOIN ROOM
-  // ===================================================
+  // =========================
 
   const joinRoom = () => {
     const name = userName.trim();
@@ -180,6 +186,13 @@ function App() {
       return;
     }
 
+    if (!socket.connected) {
+      alert("Socket server is not connected.");
+      return;
+    }
+
+    console.log("Joining room:", room);
+
     socket.emit("join-room", {
       roomId: room,
       name: name,
@@ -191,14 +204,40 @@ function App() {
     setUserName(name);
     setRoomId(room);
     setJoinedRoom(room);
-
-    // Automatically show Code after joining
     setActiveSection("code");
   };
 
-  // ===================================================
+  // =========================
+  // LEAVE ROOM
+  // =========================
+
+  const leaveRoom = () => {
+    if (joinedRoom) {
+      socket.emit("leave-room", {
+        roomId: joinedRoom,
+      });
+    }
+
+    localStorage.removeItem("syncspaceRoom");
+
+    setJoinedRoom("");
+    setRoomId("");
+    setParticipants([]);
+
+    setLines([]);
+    setHistory([]);
+    setRedoStack([]);
+
+    setCode(
+      '// Welcome to SyncSpace\nconsole.log("Hello SyncSpace!");'
+    );
+
+    setActiveSection("code");
+  };
+
+  // =========================
   // NAVIGATION
-  // ===================================================
+  // =========================
 
   const navigationButton = (section, icon, label) => {
     const active = activeSection === section;
@@ -213,7 +252,7 @@ function App() {
             : "workspace-nav-button"
         }
         onClick={() => {
-          console.log("Opening:", section);
+          console.log("Switching section:", section);
           setActiveSection(section);
         }}
       >
@@ -226,149 +265,149 @@ function App() {
     );
   };
 
-  // ===================================================
-  // CURRENT CONTENT
-  // ===================================================
+  // =========================
+  // CONTENT
+  // =========================
 
-  const renderWorkspaceContent = () => {
-    // ---------------- CODE ----------------
-
-    if (activeSection === "code") {
+  const renderContent = () => {
+    if (!joinedRoom) {
       return (
-        <CodeEditor
-          code={code}
-          setCode={setCode}
-          language={language}
-          setLanguage={setLanguage}
-          joinedRoom={joinedRoom}
-          socket={socket}
-        />
+        <div className="workspace-empty">
+          <h2>🚀 Join a workspace</h2>
+
+          <p>
+            Enter your name and Room ID above to start
+            collaborating.
+          </p>
+        </div>
       );
     }
 
-    // ---------------- WHITEBOARD ----------------
+    switch (activeSection) {
+      case "code":
+        return (
+          <CodeEditor
+            code={code}
+            setCode={setCode}
+            language={language}
+            setLanguage={setLanguage}
+            joinedRoom={joinedRoom}
+            socket={socket}
+          />
+        );
 
-    if (activeSection === "whiteboard") {
-      return (
-        <Whiteboard
-          joinedRoom={joinedRoom}
-          lines={lines}
-          setLines={setLines}
-          color={color}
-          setColor={setColor}
-          brushSize={brushSize}
-          setBrushSize={setBrushSize}
-          isDrawing={isDrawing}
-          setIsDrawing={setIsDrawing}
-          socket={socket}
-          history={history}
-          setHistory={setHistory}
-          redoStack={redoStack}
-          setRedoStack={setRedoStack}
-        />
-      );
+      case "whiteboard":
+        return (
+          <Whiteboard
+            joinedRoom={joinedRoom}
+            lines={lines}
+            setLines={setLines}
+            color={color}
+            setColor={setColor}
+            brushSize={brushSize}
+            setBrushSize={setBrushSize}
+            isDrawing={isDrawing}
+            setIsDrawing={setIsDrawing}
+            socket={socket}
+            history={history}
+            setHistory={setHistory}
+            redoStack={redoStack}
+            setRedoStack={setRedoStack}
+          />
+        );
+
+      case "chat":
+        return (
+          <Chat
+            joinedRoom={joinedRoom}
+            socket={socket}
+          />
+        );
+
+      case "team":
+        return (
+          <Participants
+            joinedRoom={joinedRoom}
+            participants={participants}
+            currentSocketId={socket.id}
+          />
+        );
+
+      default:
+        return null;
     }
-
-    // ---------------- CHAT ----------------
-
-    if (activeSection === "chat") {
-      return (
-        <Chat
-          joinedRoom={joinedRoom}
-          socket={socket}
-        />
-      );
-    }
-
-    // ---------------- TEAM ----------------
-
-    if (activeSection === "team") {
-      return (
-        <Participants
-          joinedRoom={joinedRoom}
-          participants={participants}
-          currentSocketId={socket.id}
-        />
-      );
-    }
-
-    return null;
   };
 
-  // ===================================================
+  // =========================
+  // SIDEBAR
+  // =========================
+
+  const sidebar = (
+    <>
+      <div className="workspace-brand">
+        🚀 SyncSpace
+      </div>
+
+      <div className="workspace-room-name">
+        📁 {joinedRoom || "No Room"}
+      </div>
+
+      <div className="workspace-label">
+        Navigation
+      </div>
+
+      {navigationButton("code", "💻", "Code")}
+
+      {navigationButton(
+        "whiteboard",
+        "🖍",
+        "Whiteboard"
+      )}
+
+      {navigationButton("chat", "💬", "Chat")}
+
+      {navigationButton("team", "👥", "Team")}
+
+      {joinedRoom && (
+        <button
+          type="button"
+          className="leave-workspace-button"
+          onClick={leaveRoom}
+        >
+          🚪 Leave Workspace
+        </button>
+      )}
+    </>
+  );
+
+  // =========================
+  // ROOM PANEL
+  // =========================
+
+  const roomPanel = (
+    <RoomPanel
+      roomId={roomId}
+      setRoomId={setRoomId}
+      joinedRoom={joinedRoom}
+      onJoinRoom={joinRoom}
+      userName={userName}
+      setUserName={setUserName}
+    />
+  );
+
+  // =========================
   // UI
-  // ===================================================
+  // =========================
 
   return (
     <WorkspaceLayout
       status={status}
       joinedRoom={joinedRoom}
       participants={participants}
+      sidebar={sidebar}
+      roomPanel={roomPanel}
     >
-      {/* ============================================= */}
-      {/* LEFT NAVIGATION */}
-      {/* ============================================= */}
-
-      <aside className="workspace-navigation">
-        <div className="workspace-brand">
-          🚀 SyncSpace
-        </div>
-
-        <div className="workspace-room-name">
-          📁 {joinedRoom || "No Room"}
-        </div>
-
-        <div className="workspace-label">
-          Navigation
-        </div>
-
-        {navigationButton(
-          "code",
-          "💻",
-          "Code"
-        )}
-
-        {navigationButton(
-          "whiteboard",
-          "🖍",
-          "Whiteboard"
-        )}
-
-        {navigationButton(
-          "chat",
-          "💬",
-          "Chat"
-        )}
-
-        {navigationButton(
-          "team",
-          "👥",
-          "Team"
-        )}
-      </aside>
-
-      {/* ============================================= */}
-      {/* ROOM PANEL */}
-      {/* ============================================= */}
-
-      <section className="workspace-room-panel">
-        <RoomPanel
-          roomId={roomId}
-          setRoomId={setRoomId}
-          joinedRoom={joinedRoom}
-          onJoinRoom={joinRoom}
-          userName={userName}
-          setUserName={setUserName}
-        />
-      </section>
-
-      {/* ============================================= */}
-      {/* MAIN CONTENT */}
-      {/* ============================================= */}
-
-      <main className="workspace-main-content">
-        {renderWorkspaceContent()}
-      </main>
+      {renderContent()}
     </WorkspaceLayout>
   );
 }
