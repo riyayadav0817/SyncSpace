@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 function RoomPanel({
   roomId,
@@ -7,18 +7,23 @@ function RoomPanel({
   onJoinRoom,
   userName,
   setUserName,
-  onUpdateName,
+  onChangeName,
 }) {
   const [editingName, setEditingName] = useState(false);
-  const [newName, setNewName] = useState(userName);
+  const [newName, setNewName] = useState(userName || "");
+
+  // userName change hone par input bhi update ho
+  useEffect(() => {
+    setNewName(userName || "");
+  }, [userName]);
 
   const startEditingName = () => {
-    setNewName(userName);
+    setNewName(userName || "");
     setEditingName(true);
   };
 
   const cancelEditingName = () => {
-    setNewName(userName);
+    setNewName(userName || "");
     setEditingName(false);
   };
 
@@ -37,16 +42,59 @@ function RoomPanel({
 
     setUserName(trimmedName);
 
-    localStorage.setItem(
+    // IMPORTANT: tab-specific storage
+    sessionStorage.setItem(
       "syncspaceName",
       trimmedName
     );
 
-    if (onUpdateName) {
-      onUpdateName(trimmedName);
+    if (onChangeName) {
+      onChangeName(trimmedName);
     }
 
     setEditingName(false);
+  };
+
+  const handleNameChange = (event) => {
+    const value = event.target.value;
+
+    setNewName(value);
+
+    // IMPORTANT:
+    // Parent App ka userName bhi immediately update karo.
+    setUserName(value);
+  };
+
+  const handleJoin = () => {
+    const name = newName.trim();
+    const room = roomId.trim();
+
+    if (!name) {
+      alert("Please enter your name.");
+      return;
+    }
+
+    if (!room) {
+      alert("Please enter Room ID.");
+      return;
+    }
+
+    // Parent state ko definitely update karo
+    setUserName(name);
+    setRoomId(room);
+
+    sessionStorage.setItem(
+      "syncspaceName",
+      name
+    );
+
+    sessionStorage.setItem(
+      "syncspaceRoom",
+      room
+    );
+
+    // Ab App.jsx ka joinRoom chalega
+    onJoinRoom();
   };
 
   return (
@@ -64,12 +112,9 @@ function RoomPanel({
         </div>
       </div>
 
-      {/* =========================
-          USER NAME
-      ========================= */}
+      {/* USER NAME */}
 
       <div className="room-field">
-
         <label>
           👤 Your Name
         </label>
@@ -80,9 +125,7 @@ function RoomPanel({
               type="text"
               placeholder="Enter your name"
               value={newName}
-              onChange={(event) =>
-                setNewName(event.target.value)
-              }
+              onChange={handleNameChange}
               maxLength={30}
               autoFocus={editingName}
             />
@@ -162,15 +205,11 @@ function RoomPanel({
             </button>
           </div>
         )}
-
       </div>
 
-      {/* =========================
-          ROOM ID
-      ========================= */}
+      {/* ROOM ID */}
 
       <div className="room-field">
-
         <label>
           📁 Room ID
         </label>
@@ -184,30 +223,24 @@ function RoomPanel({
           }
           disabled={Boolean(joinedRoom)}
         />
-
       </div>
 
-      {/* =========================
-          JOIN
-      ========================= */}
+      {/* JOIN */}
 
       {!joinedRoom && (
         <button
           type="button"
           className="room-join-button"
-          onClick={onJoinRoom}
+          onClick={handleJoin}
         >
           🚀 Join Room
         </button>
       )}
 
-      {/* =========================
-          JOINED
-      ========================= */}
+      {/* JOINED */}
 
       {joinedRoom && (
         <div className="room-joined-box">
-
           <div className="room-joined-status">
             🟢 Joined Room
           </div>
@@ -217,9 +250,8 @@ function RoomPanel({
           </div>
 
           <div className="room-user">
-            👤 {userName}
+            👤 {userName || "Anonymous"}
           </div>
-
         </div>
       )}
 

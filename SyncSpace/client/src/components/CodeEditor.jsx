@@ -1,72 +1,258 @@
 import { useEffect, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 
+import { createRoomProvider } from "../collaboration/yjsProvider";
+
+import {
+  getOnlineUsers,
+  subscribeToAwareness,
+} from "../collaboration/awareness";
+
 function CodeEditor({
   code,
   setCode,
   language,
   setLanguage,
   joinedRoom,
-  socket,
+  userName,
 }) {
   const editorRef = useRef(null);
+
+  const yCodeRef = useRef(null);
+  const providerRef = useRef(null);
+
+  const applyingRemoteUpdate = useRef(false);
+  const suppressEditorChange = useRef(false);
 
   const [copied, setCopied] = useState(false);
   const [output, setOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("Saved");
 
-  // ==========================================
-  // RECEIVE CODE FROM SERVER
-  // ==========================================
+  const [yjsConnected, setYjsConnected] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState([]);
+
+  // =========================================================
+  // CONNECT YJS + AWARENESS
+  // =========================================================
 
   useEffect(() => {
-    if (!socket) return;
+    if (!joinedRoom) {
+      yCodeRef.current = null;
+      providerRef.current = null;
 
-    const handleCodeUpdate = (data) => {
-      if (!data || typeof data.code !== "string") {
-        return;
-      }
+      setYjsConnected(false);
+      setOnlineUsers([]);
 
-      setCode(data.code);
-    };
-
-    socket.on("code-update", handleCodeUpdate);
-
-    return () => {
-      socket.off("code-update", handleCodeUpdate);
-    };
-  }, [socket, setCode]);
-
-  // ==========================================
-  // CODE CHANGE
-  // ==========================================
-
-  const handleCodeChange = (value) => {
-    const newCode = value || "";
-
-    setCode(newCode);
-
-    if (!joinedRoom || !socket) {
       return;
     }
 
-    socket.emit("code-change", {
-      roomId: joinedRoom,
-      code: newCode,
+    let room;
+
+    try {
+      room = createRoomProvider(joinedRoom, {
+        name: userName || "Anonymous",
+      });
+
+      const {
+  provider,
+  code: yCode,
+  awareness,
+  setUserName,
+} = room;
+
+providerRef.current = provider;
+yCodeRef.current = yCode;
+
+setUserName(userName);
+
+      // =====================================================
+      // YJS CONNECTION STATUS
+      // =====================================================
+
+      const handleStatus = ({ status }) => {
+        console.log(`Yjs status: ${status}`);
+
+        setYjsConnected(status === "connected");
+      };
+
+      provider.on("status", handleStatus);
+
+      // =====================================================
+      // REMOTE CODE CHANGES
+      // =====================================================
+
+      const handleYjsChange = () => {
+        const newCode = yCode.toString();
+
+        if (editorRef.current) {
+          const currentValue = editorRef.current.getValue();
+
+          if (currentValue === newCode) {
+            return;
+          }
+        }
+
+        applyingRemoteUpdate.current = true;
+        suppressEditorChange.current = true;
+
+        setCode(newCode);
+
+        if (editorRef.current) {
+          const model = editorRef.current.getModel();
+
+          if (model) {
+            model.pushEditOperations(
+              [],
+              [
+                {
+                  range: model.getFullModelRange(),
+                  text: newCode,
+                },
+              ],
+              () => null
+            );
+          }
+        }
+
+        suppressEditorChange.current = false;
+        applyingRemoteUpdate.current = false;
+      };
+
+      yCode.observe(handleYjsChange);
+
+      // =====================================================
+      // ONLINE USERS
+      // =====================================================
+
+      const updateUsers = (users) => {
+        setOnlineUsers(users);
+      };
+
+      const unsubscribeAwareness = subscribeToAwareness(
+        awareness,
+        updateUsers
+      );
+
+      // =====================================================
+      // INITIAL CODE
+      // =====================================================
+
+      const initialCode = yCode.toString();
+
+      if (initialCode) {
+        applyingRemoteUpdate.current = true;
+        suppressEditorChange.current = true;
+
+        setCode(initialCode);
+
+        if (editorRef.current) {
+          const model = editorRef.current.getModel();
+
+          if (model) {
+            model.setValue(initialCode);
+          }
+        }
+
+        suppressEditorChange.current = false;
+        applyingRemoteUpdate.current = false;
+      }
+
+      // =====================================================
+      // CLEANUP
+      // =====================================================
+
+      return () => {
+        provider.off("status", handleStatus);
+
+        yCode.unobserve(handleYjsChange);
+
+        unsubscribeAwareness();
+
+        provider.destroy();
+        room.doc.destroy();
+
+        yCodeRef.current = null;
+        providerRef.current = null;
+
+        setYjsConnected(false);
+        setOnlineUsers([]);
+      };
+    } catch (error) {
+      console.error("Yjs connection failed:", error);
+
+      setYjsConnected(false);
+      setOnlineUsers([]);
+    }
+  }, [joinedRoom, userName, setCode]);
+
+  // =========================================================
+  // CODE CHANGE
+  // =========================================================
+
+  const handleCodeChange = (value) => {
+    const newCode = value ?? "";
+
+    setCode(newCode);
+
+    if (
+      applyingRemoteUpdate.current ||
+      suppressEditorChange.current
+    ) {
+      return;
+    }
+
+    const yCode = yCodeRef.current;
+
+    if (!yCode) {
+      return;
+    }
+
+    const currentYCode = yCode.toString();
+
+    if (currentYCode === newCode) {
+      return;
+    }
+
+    yCode.doc.transact(() => {
+      yCode.delete(0, yCode.length);
+
+      if (newCode.length > 0) {
+        yCode.insert(0, newCode);
+      }
     });
   };
 
-  // ==========================================
+  // =========================================================
   // EDITOR MOUNT
-  // ==========================================
+  // =========================================================
 
   const handleEditorMount = (editor) => {
     editorRef.current = editor;
+
+    const yCode = yCodeRef.current;
+
+    if (!yCode) {
+      return;
+    }
+
+    const currentCode = yCode.toString();
+
+    if (editor.getValue() !== currentCode) {
+      applyingRemoteUpdate.current = true;
+      suppressEditorChange.current = true;
+
+      editor.setValue(currentCode);
+      setCode(currentCode);
+
+      suppressEditorChange.current = false;
+      applyingRemoteUpdate.current = false;
+    }
   };
 
-  // ==========================================
+  // =========================================================
   // COPY
-  // ==========================================
+  // =========================================================
 
   const copyCode = async () => {
     try {
@@ -79,13 +265,14 @@ function CodeEditor({
       }, 1500);
     } catch (error) {
       console.error("Copy failed:", error);
+
       alert("Unable to copy code.");
     }
   };
 
-  // ==========================================
+  // =========================================================
   // CLEAR CODE
-  // ==========================================
+  // =========================================================
 
   const clearCode = () => {
     const confirmed = window.confirm(
@@ -100,12 +287,15 @@ function CodeEditor({
     setOutput("");
   };
 
-  // ==========================================
-  // FORMAT VALUE FOR OUTPUT
-  // ==========================================
+  // =========================================================
+  // FORMAT VALUE
+  // =========================================================
 
   const formatValue = (value) => {
-    if (typeof value === "object" && value !== null) {
+    if (
+      typeof value === "object" &&
+      value !== null
+    ) {
       try {
         return JSON.stringify(value, null, 2);
       } catch {
@@ -115,10 +305,12 @@ function CodeEditor({
 
     return String(value);
   };
+  
 
-  // ==========================================
+
+  // =========================================================
   // RUN JAVASCRIPT
-  // ==========================================
+  // =========================================================
 
   const runJavaScript = () => {
     if (!code.trim()) {
@@ -188,9 +380,9 @@ function CodeEditor({
     }
   };
 
-  // ==========================================
+  // =========================================================
   // RUN CODE
-  // ==========================================
+  // =========================================================
 
   const runCode = () => {
     if (!code.trim()) {
@@ -202,7 +394,7 @@ function CodeEditor({
       setOutput(
         `⚠️ ${language.toUpperCase()} execution is not available yet.\n\n` +
           "Currently JavaScript execution is supported.\n" +
-          "Python, C++, Java and other languages will be connected to the execution engine later."
+          "Python, C++, Java and other languages will be connected later."
       );
 
       return;
@@ -211,20 +403,19 @@ function CodeEditor({
     runJavaScript();
   };
 
-  // ==========================================
+  // =========================================================
   // CLEAR OUTPUT
-  // ==========================================
+  // =========================================================
 
   const clearOutput = () => {
     setOutput("");
   };
 
-  // ==========================================
+  // =========================================================
   // KEYBOARD SHORTCUTS
-  // ==========================================
+  // =========================================================
 
   const handleEditorKeyDown = (event) => {
-    // Ctrl + S
     if (
       (event.ctrlKey || event.metaKey) &&
       event.key.toLowerCase() === "s"
@@ -234,7 +425,6 @@ function CodeEditor({
       console.log("Code saved locally.");
     }
 
-    // Ctrl + Enter
     if (
       (event.ctrlKey || event.metaKey) &&
       event.key === "Enter"
@@ -245,9 +435,9 @@ function CodeEditor({
     }
   };
 
-  // ==========================================
+  // =========================================================
   // LANGUAGE LABEL
-  // ==========================================
+  // =========================================================
 
   const languageLabel = {
     javascript: "JavaScript",
@@ -260,9 +450,9 @@ function CodeEditor({
     json: "JSON",
   };
 
-  // ==========================================
+  // =========================================================
   // UI
-  // ==========================================
+  // =========================================================
 
   return (
     <div
@@ -273,13 +463,10 @@ function CodeEditor({
         border: "1px solid #1e293b",
         borderRadius: "14px",
         overflow: "hidden",
-        boxShadow:
-          "0 15px 40px rgba(0,0,0,0.25)",
+        boxShadow: "0 15px 40px rgba(0,0,0,0.25)",
       }}
     >
-      {/* =====================================
-          TOP HEADER
-      ===================================== */}
+      {/* HEADER */}
 
       <div
         style={{
@@ -293,8 +480,6 @@ function CodeEditor({
           flexWrap: "wrap",
         }}
       >
-        {/* TITLE */}
-
         <div
           style={{
             display: "flex",
@@ -340,41 +525,117 @@ function CodeEditor({
           </div>
         </div>
 
-        {/* CONNECTION */}
+        {/* CONNECTION + USERS */}
 
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "7px",
-            padding: "7px 11px",
-            borderRadius: "20px",
-            background: joinedRoom
-              ? "rgba(22,163,74,0.12)"
-              : "rgba(220,38,38,0.12)",
-            border: joinedRoom
-              ? "1px solid rgba(34,197,94,0.25)"
-              : "1px solid rgba(248,113,113,0.25)",
-            color: joinedRoom
-              ? "#4ade80"
-              : "#f87171",
-            fontSize: "12px",
-            fontWeight: "600",
+            gap: "8px",
+            flexWrap: "wrap",
           }}
         >
-          <span>
-            {joinedRoom ? "●" : "●"}
-          </span>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "7px",
+              padding: "7px 11px",
+              borderRadius: "20px",
+              background: yjsConnected
+                ? "rgba(22,163,74,0.12)"
+                : "rgba(220,38,38,0.12)",
+              border: yjsConnected
+                ? "1px solid rgba(34,197,94,0.25)"
+                : "1px solid rgba(248,113,113,0.25)",
+              color: yjsConnected
+                ? "#4ade80"
+                : "#f87171",
+              fontSize: "12px",
+              fontWeight: "600",
+            }}
+          >
+            <span>●</span>
 
-          {joinedRoom
-            ? `Room ${joinedRoom}`
-            : "Not connected"}
+            {yjsConnected
+              ? `Yjs • Room ${joinedRoom}`
+              : "Yjs disconnected"}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "7px",
+              padding: "7px 11px",
+              borderRadius: "20px",
+              background: "#172033",
+              border: "1px solid #263449",
+              color: "#cbd5e1",
+              fontSize: "12px",
+              fontWeight: "600",
+            }}
+          >
+            👥 {onlineUsers.length} online
+          </div>
         </div>
       </div>
 
-      {/* =====================================
-          TOOLBAR
-      ===================================== */}
+      {/* ONLINE USERS */}
+
+      {onlineUsers.length > 0 && (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            padding: "8px 14px",
+            background: "#0b1120",
+            borderBottom: "1px solid #1e293b",
+            flexWrap: "wrap",
+          }}
+        >
+          <span
+            style={{
+              color: "#64748b",
+              fontSize: "11px",
+              fontWeight: "600",
+            }}
+          >
+            COLLABORATORS
+          </span>
+
+          {onlineUsers.map((user) => (
+            <div
+              key={user.clientId}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+                padding: "4px 8px",
+                borderRadius: "14px",
+                background: "#172033",
+                border: "1px solid #263449",
+                color: "#cbd5e1",
+                fontSize: "11px",
+              }}
+            >
+              <span
+                style={{
+                  width: "7px",
+                  height: "7px",
+                  borderRadius: "50%",
+                  background: "#22c55e",
+                }}
+              />
+
+              {user.name || "Anonymous"}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* TOOLBAR */}
 
       <div
         style={{
@@ -388,8 +649,6 @@ function CodeEditor({
           flexWrap: "wrap",
         }}
       >
-        {/* LEFT CONTROLS */}
-
         <div
           style={{
             display: "flex",
@@ -398,8 +657,6 @@ function CodeEditor({
             flexWrap: "wrap",
           }}
         >
-          {/* LANGUAGE */}
-
           <select
             value={language}
             onChange={(e) => {
@@ -419,40 +676,15 @@ function CodeEditor({
               fontWeight: "600",
             }}
           >
-            <option value="javascript">
-              JavaScript
-            </option>
-
-            <option value="typescript">
-              TypeScript
-            </option>
-
-            <option value="python">
-              Python
-            </option>
-
-            <option value="java">
-              Java
-            </option>
-
-            <option value="cpp">
-              C++
-            </option>
-
-            <option value="html">
-              HTML
-            </option>
-
-            <option value="css">
-              CSS
-            </option>
-
-            <option value="json">
-              JSON
-            </option>
+            <option value="javascript">JavaScript</option>
+            <option value="typescript">TypeScript</option>
+            <option value="python">Python</option>
+            <option value="java">Java</option>
+            <option value="cpp">C++</option>
+            <option value="html">HTML</option>
+            <option value="css">CSS</option>
+            <option value="json">JSON</option>
           </select>
-
-          {/* FILE */}
 
           <div
             style={{
@@ -478,8 +710,6 @@ function CodeEditor({
           </div>
         </div>
 
-        {/* RIGHT CONTROLS */}
-
         <div
           style={{
             display: "flex",
@@ -488,8 +718,6 @@ function CodeEditor({
             flexWrap: "wrap",
           }}
         >
-          {/* RUN */}
-
           <button
             type="button"
             onClick={runCode}
@@ -515,8 +743,6 @@ function CodeEditor({
               : "▶ Run"}
           </button>
 
-          {/* COPY */}
-
           <button
             type="button"
             onClick={copyCode}
@@ -531,12 +757,8 @@ function CodeEditor({
               fontSize: "13px",
             }}
           >
-            {copied
-              ? "✓ Copied"
-              : "📋 Copy"}
+            {copied ? "✓ Copied" : "📋 Copy"}
           </button>
-
-          {/* CLEAR */}
 
           <button
             type="button"
@@ -557,109 +779,79 @@ function CodeEditor({
         </div>
       </div>
 
-      {/* =====================================
-          EDITOR AREA
-      ===================================== */}
+      {/* MONACO */}
 
       <div
         style={{
-          display: "flex",
           width: "100%",
           background: "#1e1e1e",
         }}
       >
-        {/* EDITOR */}
+        <Editor
+          height="520px"
+          language={language}
+          theme="vs-dark"
+          value={code}
+          onChange={handleCodeChange}
+          onMount={handleEditorMount}
+          options={{
+            fontSize: 15,
 
-        <div
-          style={{
-            flex: 1,
-            minWidth: 0,
+            fontFamily:
+              "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+
+            lineHeight: 23,
+            lineNumbers: "on",
+            lineNumbersMinChars: 3,
+
+            minimap: {
+              enabled: true,
+            },
+
+            automaticLayout: true,
+            wordWrap: "on",
+            smoothScrolling: true,
+            cursorBlinking: "smooth",
+            cursorSmoothCaretAnimation: "on",
+            suggestOnTriggerCharacters: true,
+            quickSuggestions: true,
+            formatOnPaste: true,
+            formatOnType: true,
+
+            bracketPairColorization: {
+              enabled: true,
+            },
+
+            guides: {
+              bracketPairs: true,
+              indentation: true,
+            },
+
+            scrollBeyondLastLine: false,
+            folding: true,
+            foldingHighlight: true,
+            renderWhitespace: "selection",
+
+            padding: {
+              top: 12,
+              bottom: 12,
+            },
+
+            tabSize: 2,
+            insertSpaces: true,
+            detectIndentation: true,
+            overviewRulerBorder: false,
+
+            scrollbar: {
+              verticalScrollbarSize: 10,
+              horizontalScrollbarSize: 10,
+            },
           }}
-        >
-          <Editor
-            height="520px"
-            language={language}
-            theme="vs-dark"
-            value={code}
-            onChange={handleCodeChange}
-            onMount={handleEditorMount}
-            options={{
-              fontSize: 15,
-
-              fontFamily:
-                "'JetBrains Mono', 'Fira Code', Consolas, monospace",
-
-              lineHeight: 23,
-
-              lineNumbers: "on",
-
-              lineNumbersMinChars: 3,
-
-              minimap: {
-                enabled: true,
-              },
-
-              automaticLayout: true,
-
-              wordWrap: "on",
-
-              smoothScrolling: true,
-
-              cursorBlinking: "smooth",
-
-              cursorSmoothCaretAnimation: "on",
-
-              suggestOnTriggerCharacters: true,
-
-              quickSuggestions: true,
-
-              formatOnPaste: true,
-
-              formatOnType: true,
-
-              bracketPairColorization: {
-                enabled: true,
-              },
-
-              guides: {
-                bracketPairs: true,
-                indentation: true,
-              },
-
-              scrollBeyondLastLine: false,
-
-              folding: true,
-
-              foldingHighlight: true,
-
-              renderWhitespace: "selection",
-
-              padding: {
-                top: 12,
-                bottom: 12,
-              },
-
-              tabSize: 2,
-
-              insertSpaces: true,
-
-              detectIndentation: true,
-
-              overviewRulerBorder: false,
-
-              scrollbar: {
-                verticalScrollbarSize: 10,
-                horizontalScrollbarSize: 10,
-              },
-            }}
-            onKeyDown={handleEditorKeyDown}
-          />
-        </div>
+          onKeyDown={handleEditorKeyDown}
+        />
       </div>
 
-      {/* =====================================
-          TERMINAL / OUTPUT HEADER
-      ===================================== */}
+      {/* TERMINAL */}
 
       <div
         style={{
@@ -718,10 +910,6 @@ function CodeEditor({
           </button>
         </div>
 
-        {/* =====================================
-            OUTPUT
-        ===================================== */}
-
         <div
           style={{
             background: "#020617",
@@ -753,9 +941,7 @@ function CodeEditor({
         </div>
       </div>
 
-      {/* =====================================
-          STATUS BAR
-      ===================================== */}
+      {/* STATUS */}
 
       <div
         style={{

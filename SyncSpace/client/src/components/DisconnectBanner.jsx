@@ -3,57 +3,19 @@ import { useEffect, useState } from "react";
 function DisconnectBanner({ status, socket }) {
   const [retrying, setRetrying] = useState(false);
 
-  const safeStatus =
+  const normalizedStatus =
     typeof status === "string"
       ? status.toLowerCase()
       : "";
 
   const disconnected =
-    safeStatus.includes("disconnected");
+    normalizedStatus.includes("disconnected");
 
   const connecting =
-    safeStatus.includes("connecting");
+    normalizedStatus.includes("connecting");
 
   const connected =
-    safeStatus.includes("connected");
-
-  // =========================
-  // SOCKET STATUS
-  // =========================
-
-  useEffect(() => {
-    if (!socket) return;
-
-    const handleConnect = () => {
-      setRetrying(false);
-    };
-
-    const handleConnectError = () => {
-      setRetrying(false);
-    };
-
-    socket.on("connect", handleConnect);
-    socket.on(
-      "connect_error",
-      handleConnectError
-    );
-
-    return () => {
-      socket.off(
-        "connect",
-        handleConnect
-      );
-
-      socket.off(
-        "connect_error",
-        handleConnectError
-      );
-    };
-  }, [socket]);
-
-  // =========================
-  // STATUS EFFECT
-  // =========================
+    normalizedStatus.includes("connected");
 
   useEffect(() => {
     if (connected) {
@@ -61,12 +23,9 @@ function DisconnectBanner({ status, socket }) {
     }
   }, [connected]);
 
-  // =========================
-  // MANUAL RECONNECT
-  // =========================
-
   const handleReconnect = () => {
     if (!socket) {
+      console.warn("Socket instance not available.");
       return;
     }
 
@@ -80,24 +39,16 @@ function DisconnectBanner({ status, socket }) {
     try {
       socket.connect();
     } catch (error) {
-      console.error(
-        "Reconnect failed:",
-        error
-      );
-
+      console.error("Reconnect failed:", error);
       setRetrying(false);
     }
   };
-
-  // =========================
-  // HIDE WHEN CONNECTED
-  // =========================
 
   if (!disconnected && !connecting) {
     return null;
   }
 
-  const isDisconnected = disconnected;
+  const showDisconnected = disconnected && !connecting;
 
   return (
     <div
@@ -114,7 +65,7 @@ function DisconnectBanner({ status, socket }) {
 
         padding: "10px 16px",
 
-        background: isDisconnected
+        background: showDisconnected
           ? "linear-gradient(90deg, #7f1d1d, #991b1b)"
           : "linear-gradient(90deg, #78350f, #92400e)",
 
@@ -141,72 +92,47 @@ function DisconnectBanner({ status, socket }) {
           flexWrap: "wrap",
         }}
       >
-        {/* STATUS ICON */}
-
-        <span
-          style={{
-            fontSize: "16px",
-          }}
-        >
-          {isDisconnected
-            ? "🔴"
-            : "🟡"}
+        <span style={{ fontSize: "16px" }}>
+          {showDisconnected ? "🔴" : "🟡"}
         </span>
 
-        {/* STATUS TEXT */}
-
         <span>
-          {isDisconnected
+          {showDisconnected
             ? retrying
               ? "Reconnecting to SyncSpace..."
               : "Connection lost. Trying to reconnect..."
             : "Connecting to SyncSpace server..."}
         </span>
 
-        {/* RETRY BUTTON */}
+        {showDisconnected && !retrying && (
+          <button
+            type="button"
+            onClick={handleReconnect}
+            disabled={!socket}
+            style={{
+              padding: "6px 12px",
 
-        {isDisconnected &&
-          !retrying && (
-            <button
-              type="button"
-              onClick={
-                handleReconnect
-              }
-              style={{
-                padding:
-                  "6px 12px",
+              background:
+                "rgba(255,255,255,0.12)",
 
-                background:
-                  "rgba(255,255,255,0.12)",
+              color: "#fff",
 
-                color: "#fff",
+              border:
+                "1px solid rgba(255,255,255,0.25)",
 
-                border:
-                  "1px solid rgba(255,255,255,0.25)",
+              borderRadius: "6px",
 
-                borderRadius: "6px",
+              cursor: socket
+                ? "pointer"
+                : "not-allowed",
 
-                cursor: "pointer",
-
-                fontWeight: "600",
-
-                fontSize: "12px",
-
-                transition:
-                  "background 0.2s ease",
-              }}
-              onMouseEnter={(event) => {
-                event.currentTarget.style.background =
-                  "rgba(255,255,255,0.22)";
-              }}
-              onMouseLeave={(event) => {
-                event.currentTarget.style.background =
-                  "rgba(255,255,255,0.12)";
-              }}
-            >
-              ↻ Retry
-            </button>
-          )}
+              fontWeight: "600",
+              fontSize: "12px",
+            }}
+          >
+            ↻ Retry
+          </button>
+        )}
       </div>
     </div>
   );

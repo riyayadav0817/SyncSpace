@@ -13,6 +13,9 @@
   "dependencies": {
     "cors": "^2.8.6",
     "express": "^5.2.1",
-    "socket.io": "^4.8.3"
+    "socket.io": "^4.8.3",
+    "ws": "^8.21.3",
+    "y-websocket": "^2.0.3",
+    "yjs": "^13.6.31"
   }
 }

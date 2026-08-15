@@ -24,100 +24,79 @@ const DEFAULT_CODE =
   '// Welcome to SyncSpace\nconsole.log("Hello SyncSpace!");';
 
 function App() {
-  // =========================
+  // =========================================================
   // CONNECTION
-  // =========================
+  // =========================================================
 
   const [status, setStatus] = useState("Connecting...");
-  const [isConnected, setIsConnected] = useState(
-    socket.connected
-  );
+  const [isConnected, setIsConnected] = useState(socket.connected);
 
-  // =========================
+  // =========================================================
   // NAVIGATION
-  // =========================
+  // =========================================================
 
-  const [activeSection, setActiveSection] =
-    useState("code");
+  const [activeSection, setActiveSection] = useState("code");
 
-  // =========================
+  // =========================================================
   // USER / ROOM
-  // =========================
+  // IMPORTANT:
+  // sessionStorage = separate data for each browser tab
+  // =========================================================
 
   const [userName, setUserName] = useState(
-    localStorage.getItem("syncspaceName") || ""
+    sessionStorage.getItem("syncspaceName") || ""
   );
 
   const [roomId, setRoomId] = useState(
-    localStorage.getItem("syncspaceRoom") || ""
+    sessionStorage.getItem("syncspaceRoom") || ""
   );
 
   const [joinedRoom, setJoinedRoom] = useState(
-    localStorage.getItem("syncspaceRoom") || ""
+    sessionStorage.getItem("syncspaceRoom") || ""
   );
 
-  const [participants, setParticipants] =
-    useState([]);
+  const [participants, setParticipants] = useState([]);
 
-  // =========================
+  // =========================================================
   // WHITEBOARD
-  // =========================
+  // =========================================================
 
   const [lines, setLines] = useState([]);
-  const [color, setColor] =
-    useState("#2563eb");
-
-  const [brushSize, setBrushSize] =
-    useState(4);
-
-  const [isDrawing, setIsDrawing] =
-    useState(false);
+  const [color, setColor] = useState("#2563eb");
+  const [brushSize, setBrushSize] = useState(4);
+  const [isDrawing, setIsDrawing] = useState(false);
 
   const [history, setHistory] = useState([]);
-  const [redoStack, setRedoStack] =
-    useState([]);
+  const [redoStack, setRedoStack] = useState([]);
 
-  // =========================
+  // =========================================================
   // CODE EDITOR
-  // =========================
+  // =========================================================
 
-  const [code, setCode] =
-    useState(DEFAULT_CODE);
+  const [code, setCode] = useState(DEFAULT_CODE);
+  const [language, setLanguage] = useState("javascript");
 
-  const [language, setLanguage] =
-    useState("javascript");
-
-  // =========================
+  // =========================================================
   // SOCKET EVENTS
-  // =========================
+  // =========================================================
 
   useEffect(() => {
-    // =========================
-    // CONNECT
-    // =========================
-
     const handleConnect = () => {
-      console.log(
-        "✅ Socket connected:",
-        socket.id
-      );
+      console.log("✅ Socket connected:", socket.id);
 
       setIsConnected(true);
-      setStatus(
-        "Connected to SyncSpace Server"
-      );
+      setStatus("Connected to SyncSpace Server");
 
       const savedRoom =
-        localStorage.getItem(
-          "syncspaceRoom"
-        );
+        sessionStorage.getItem("syncspaceRoom");
 
       const savedName =
-        localStorage.getItem(
-          "syncspaceName"
-        );
+        sessionStorage.getItem("syncspaceName");
 
-      // Rejoin previous room
+      // =====================================================
+      // AUTO REJOIN ONLY FOR THIS TAB
+      // =====================================================
+
       if (savedRoom && savedName) {
         console.log(
           "🔄 Rejoining room:",
@@ -137,128 +116,98 @@ function App() {
       }
     };
 
-    // =========================
-    // DISCONNECT
-    // =========================
-
-    const handleDisconnect = (
-      reason
-    ) => {
+    const handleDisconnect = (reason) => {
       console.log(
         "❌ Socket disconnected:",
         reason
       );
 
       setIsConnected(false);
-      setStatus(
-        "Disconnected from Server"
-      );
+      setStatus("Disconnected from Server");
 
       setParticipants([]);
     };
 
-    // =========================
-    // CONNECTION ERROR
-    // =========================
-
-    const handleConnectError = (
-      error
-    ) => {
+    const handleConnectError = (error) => {
       console.error(
         "❌ Socket connection error:",
         error
       );
 
       setIsConnected(false);
-      setStatus(
-        "Disconnected from Server"
-      );
+      setStatus("Disconnected from Server");
     };
 
-    // =========================
+    // =========================================================
     // ROOM USERS
-    // =========================
+    // =========================================================
 
-    const handleRoomUsers = (
-      users
-    ) => {
-      console.log(
-        "👥 Room users:",
-        users
-      );
+    const handleRoomUsers = (users) => {
+      console.log("👥 Room users:", users);
 
       if (Array.isArray(users)) {
         setParticipants(users);
       }
     };
 
-    // =========================
+    // =========================================================
     // ROOM STATE
-    // =========================
+    // =========================================================
 
-    const handleRoomState = (
-      state
-    ) => {
-      console.log(
-        "📦 Room state:",
-        state
-      );
+    const handleRoomState = (state) => {
+      console.log("📦 Room state:", state);
 
-      if (!state) return;
+      if (!state) {
+        return;
+      }
 
-      if (
-        Array.isArray(state.lines)
-      ) {
+      if (Array.isArray(state.lines)) {
         setLines(state.lines);
       }
 
-      if (
-        typeof state.code === "string"
-      ) {
+      if (typeof state.code === "string") {
         setCode(state.code);
       }
     };
 
-    // =========================
+    // =========================================================
     // DRAW LINE
-    // =========================
+    // =========================================================
 
-    const handleDrawLine = (
-      data
-    ) => {
-      if (
-        !data ||
-        !Array.isArray(
-          data.points
-        )
-      ) {
+    const handleDrawLine = (data) => {
+      if (!data || !Array.isArray(data.points)) {
         return;
       }
 
-      setLines((previous) => [
-        ...previous,
-        {
-          id:
-            data.id ||
-            `${Date.now()}-${Math.random()}`,
+      setLines((previous) => {
+        const newId =
+          data.id ||
+          `${Date.now()}-${Math.random()}`;
 
-          points: data.points,
+        const alreadyExists = previous.some(
+          (line) => line.id === newId
+        );
 
-          color:
-            data.color ||
-            "#2563eb",
+        if (alreadyExists) {
+          return previous;
+        }
 
-          brushSize:
-            Number(
-              data.brushSize
-            ) || 4,
-        },
-      ]);
+        return [
+          ...previous,
+          {
+            id: newId,
+            points: data.points,
+            color: data.color || "#2563eb",
+            brushSize:
+              Number(data.brushSize) || 4,
+          },
+        ];
+      });
     };
 
-    // =========================
+    // =========================================================
     // CLEAR BOARD
-    // =========================
+    // =========================================================
 
     const handleClearBoard = () => {
       setLines([]);
@@ -266,31 +215,23 @@ function App() {
       setRedoStack([]);
     };
 
-    // =========================
+    // =========================================================
     // CODE UPDATE
-    // =========================
+    // =========================================================
 
-    const handleCodeUpdate = (
-      data
-    ) => {
-      if (
-        typeof data?.code !==
-        "string"
-      ) {
+    const handleCodeUpdate = (data) => {
+      if (typeof data?.code !== "string") {
         return;
       }
 
       setCode(data.code);
     };
 
-    // =========================
-    // LISTENERS
-    // =========================
+    // =========================================================
+    // REGISTER SOCKET LISTENERS
+    // =========================================================
 
-    socket.on(
-      "connect",
-      handleConnect
-    );
+    socket.on("connect", handleConnect);
 
     socket.on(
       "disconnect",
@@ -327,14 +268,14 @@ function App() {
       handleCodeUpdate
     );
 
-    // Already connected
+    // Socket already connected
     if (socket.connected) {
       handleConnect();
     }
 
-    // =========================
+    // =========================================================
     // CLEANUP
-    // =========================
+    // =========================================================
 
     return () => {
       socket.off(
@@ -379,28 +320,21 @@ function App() {
     };
   }, []);
 
-  // =========================
+  // =========================================================
   // JOIN ROOM
-  // =========================
+  // =========================================================
 
   const joinRoom = () => {
-    const name =
-      userName.trim();
-
-    const room =
-      roomId.trim();
+    const name = userName.trim();
+    const room = roomId.trim();
 
     if (!name) {
-      alert(
-        "Please enter your name."
-      );
+      alert("Please enter your name.");
       return;
     }
 
     if (!room) {
-      alert(
-        "Please enter Room ID."
-      );
+      alert("Please enter Room ID.");
       return;
     }
 
@@ -418,20 +352,19 @@ function App() {
       name
     );
 
-    socket.emit(
-      "join-room",
-      {
-        roomId: room,
-        name,
-      }
-    );
+    socket.emit("join-room", {
+      roomId: room,
+      name,
+    });
 
-    localStorage.setItem(
+    // IMPORTANT:
+    // Store only for this tab.
+    sessionStorage.setItem(
       "syncspaceName",
       name
     );
 
-    localStorage.setItem(
+    sessionStorage.setItem(
       "syncspaceRoom",
       room
     );
@@ -443,34 +376,25 @@ function App() {
     setActiveSection("code");
   };
 
-  // =========================
+  // =========================================================
   // CHANGE NAME
-  // =========================
+  // =========================================================
 
-  const changeName = (
-    newName
-  ) => {
-    const name =
-      newName.trim();
+  const changeName = (newName) => {
+    const name = newName.trim();
 
     if (!name) {
-      alert(
-        "Please enter a valid name."
-      );
+      alert("Please enter a valid name.");
       return;
     }
 
     if (!joinedRoom) {
-      alert(
-        "Please join a room first."
-      );
+      alert("Please join a room first.");
       return;
     }
 
     if (!socket.connected) {
-      alert(
-        "Server is not connected."
-      );
+      alert("Server is not connected.");
       return;
     }
 
@@ -479,15 +403,12 @@ function App() {
       name
     );
 
-    socket.emit(
-      "change-name",
-      {
-        roomId: joinedRoom,
-        name,
-      }
-    );
+    socket.emit("change-name", {
+      roomId: joinedRoom,
+      name,
+    });
 
-    localStorage.setItem(
+    sessionStorage.setItem(
       "syncspaceName",
       name
     );
@@ -495,29 +416,32 @@ function App() {
     setUserName(name);
   };
 
-  // =========================
+  // =========================================================
   // LEAVE ROOM
-  // =========================
+  // =========================================================
 
   const leaveRoom = () => {
     if (
       joinedRoom &&
       socket.connected
     ) {
-      socket.emit(
-        "leave-room",
-        {
-          roomId: joinedRoom,
-        }
-      );
+      socket.emit("leave-room", {
+        roomId: joinedRoom,
+      });
     }
 
-    localStorage.removeItem(
+    // Clear ONLY this tab
+    sessionStorage.removeItem(
       "syncspaceRoom"
+    );
+
+    sessionStorage.removeItem(
+      "syncspaceName"
     );
 
     setJoinedRoom("");
     setRoomId("");
+    setUserName("");
 
     setParticipants([]);
 
@@ -531,22 +455,25 @@ function App() {
     setActiveSection("code");
   };
 
-  // =========================
+  // =========================================================
   // NAVIGATION
-  // =========================
+  // =========================================================
 
-  const handleNavigation = (
-    section
-  ) => {
+  const handleNavigation = (section) => {
     if (!joinedRoom) {
       alert(
         "Please join a workspace first."
       );
+
       return;
     }
 
     setActiveSection(section);
   };
+
+  // =========================================================
+  // NAVIGATION BUTTON
+  // =========================================================
 
   const navigationButton = (
     section,
@@ -566,9 +493,7 @@ function App() {
             : "workspace-nav-button"
         }
         onClick={() =>
-          handleNavigation(
-            section
-          )
+          handleNavigation(section)
         }
       >
         <span className="workspace-nav-icon">
@@ -580,9 +505,9 @@ function App() {
     );
   };
 
-  // =========================
+  // =========================================================
   // CONTENT
-  // =========================
+  // =========================================================
 
   const renderContent = () => {
     if (!joinedRoom) {
@@ -605,9 +530,7 @@ function App() {
       );
     }
 
-    switch (
-      activeSection
-    ) {
+    switch (activeSection) {
       case "code":
         return (
           <ErrorBoundary>
@@ -615,13 +538,10 @@ function App() {
               code={code}
               setCode={setCode}
               language={language}
-              setLanguage={
-                setLanguage
-              }
-              joinedRoom={
-                joinedRoom
-              }
+              setLanguage={setLanguage}
+              joinedRoom={joinedRoom}
               socket={socket}
+              userName={userName}
             />
           </ErrorBoundary>
         );
@@ -630,36 +550,20 @@ function App() {
         return (
           <ErrorBoundary>
             <Whiteboard
-              joinedRoom={
-                joinedRoom
-              }
+              joinedRoom={joinedRoom}
               lines={lines}
               setLines={setLines}
               color={color}
               setColor={setColor}
-              brushSize={
-                brushSize
-              }
-              setBrushSize={
-                setBrushSize
-              }
-              isDrawing={
-                isDrawing
-              }
-              setIsDrawing={
-                setIsDrawing
-              }
+              brushSize={brushSize}
+              setBrushSize={setBrushSize}
+              isDrawing={isDrawing}
+              setIsDrawing={setIsDrawing}
               socket={socket}
               history={history}
-              setHistory={
-                setHistory
-              }
-              redoStack={
-                redoStack
-              }
-              setRedoStack={
-                setRedoStack
-              }
+              setHistory={setHistory}
+              redoStack={redoStack}
+              setRedoStack={setRedoStack}
             />
           </ErrorBoundary>
         );
@@ -668,9 +572,7 @@ function App() {
         return (
           <ErrorBoundary>
             <Chat
-              joinedRoom={
-                joinedRoom
-              }
+              joinedRoom={joinedRoom}
               socket={socket}
             />
           </ErrorBoundary>
@@ -680,15 +582,9 @@ function App() {
         return (
           <ErrorBoundary>
             <Participants
-              joinedRoom={
-                joinedRoom
-              }
-              participants={
-                participants
-              }
-              currentSocketId={
-                socket.id
-              }
+              joinedRoom={joinedRoom}
+              participants={participants}
+              currentSocketId={socket.id}
             />
           </ErrorBoundary>
         );
@@ -698,9 +594,9 @@ function App() {
     }
   };
 
-  // =========================
+  // =========================================================
   // SIDEBAR
-  // =========================
+  // =========================================================
 
   const sidebar = (
     <>
@@ -709,9 +605,7 @@ function App() {
       </div>
 
       <div className="workspace-room-name">
-        📁{" "}
-        {joinedRoom ||
-          "No Room"}
+        📁 {joinedRoom || "No Room"}
       </div>
 
       <div className="workspace-label">
@@ -746,9 +640,7 @@ function App() {
         <button
           type="button"
           className="leave-workspace-button"
-          onClick={
-            leaveRoom
-          }
+          onClick={leaveRoom}
         >
           🚪 Leave Workspace
         </button>
@@ -756,9 +648,9 @@ function App() {
     </>
   );
 
-  // =========================
+  // =========================================================
   // ROOM PANEL
-  // =========================
+  // =========================================================
 
   const roomPanel = (
     <RoomPanel
@@ -767,23 +659,18 @@ function App() {
       joinedRoom={joinedRoom}
       onJoinRoom={joinRoom}
       userName={userName}
-      setUserName={
-        setUserName
-      }
-      onChangeName={
-        changeName
-      }
+      setUserName={setUserName}
+      onChangeName={changeName}
     />
   );
 
-  // =========================
+  // =========================================================
   // UI
-  // =========================
+  // =========================================================
 
   return (
     <ErrorBoundary>
       <div className="syncspace-app">
-
         <DisconnectBanner
           status={status}
           socket={socket}
@@ -791,16 +678,10 @@ function App() {
 
         <WorkspaceLayout
           status={status}
-          joinedRoom={
-            joinedRoom
-          }
-          participants={
-            participants
-          }
+          joinedRoom={joinedRoom}
+          participants={participants}
           sidebar={sidebar}
-          roomPanel={
-            roomPanel
-          }
+          roomPanel={roomPanel}
         >
           {renderContent()}
         </WorkspaceLayout>
