@@ -190,38 +190,40 @@ setUserName(userName);
   // CODE CHANGE
   // =========================================================
 
-  const handleCodeChange = (value) => {
-    const newCode = value ?? "";
+  
+    const handleCodeChange = (value) => {
+  const newCode = value ?? "";
 
-    setCode(newCode);
+  setCode(newCode);
 
-    if (
-      applyingRemoteUpdate.current ||
-      suppressEditorChange.current
-    ) {
-      return;
+  if (
+    applyingRemoteUpdate.current ||
+    suppressEditorChange.current
+  ) {
+    return;
+  }
+
+  const yCode = yCodeRef.current;
+
+  if (!yCode) {
+    return;
+  }
+
+  const currentYCode = yCode.toString();
+
+  if (currentYCode === newCode) {
+    return;
+  }
+
+  yCode.doc.transact(() => {
+    yCode.delete(0, yCode.length);
+
+    if (newCode.length > 0) {
+      yCode.insert(0, newCode);
     }
+  });
+};
 
-    const yCode = yCodeRef.current;
-
-    if (!yCode) {
-      return;
-    }
-
-    const currentYCode = yCode.toString();
-
-    if (currentYCode === newCode) {
-      return;
-    }
-
-    yCode.doc.transact(() => {
-      yCode.delete(0, yCode.length);
-
-      if (newCode.length > 0) {
-        yCode.insert(0, newCode);
-      }
-    });
-  };
 
   // =========================================================
   // EDITOR MOUNT
