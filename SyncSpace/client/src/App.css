@@ -1,6 +1,6 @@
-/* =====================================
+/* =====================================================
    GLOBAL
-===================================== */
+===================================================== */
 
 * {
   box-sizing: border-box;
@@ -10,8 +10,8 @@ html,
 body,
 #root {
   margin: 0;
-  min-height: 100%;
   width: 100%;
+  min-height: 100%;
 }
 
 body {
@@ -24,66 +24,168 @@ body {
     sans-serif;
 
   background: #020617;
-  color: white;
+  color: #e2e8f0;
+}
+
+button,
+input {
+  font: inherit;
 }
 
 
-/* =====================================
-   WORKSPACE NAVIGATION
-===================================== */
+/* =====================================================
+   APP
+===================================================== */
 
-.workspace-navigation {
-  background:
-    linear-gradient(
-      145deg,
-      #0f172a,
-      #111827
-    );
-
-  padding: 18px;
-
-  border-radius: 16px;
-
-  margin-bottom: 20px;
-
-  border: 1px solid
-    rgba(148, 163, 184, 0.1);
-
-  box-shadow:
-    0 15px 40px rgba(0, 0, 0, 0.25);
+.syncspace-app {
+  min-height: 100vh;
+  width: 100%;
+  background: #020617;
 }
 
 
-/* =====================================
-   BRAND
-===================================== */
+/* =====================================================
+   WORKSPACE SHELL
+===================================================== */
 
-.workspace-brand {
-  margin: 0 0 6px;
+.workspace-shell {
+  min-height: 100vh;
+  width: 100%;
+  background: #020617;
+  color: #e2e8f0;
+}
 
-  color: #f8fafc;
 
-  font-size: 20px;
+/* =====================================================
+   HEADER
+===================================================== */
+
+.workspace-header {
+  min-height: 70px;
+
+  display: flex;
+  align-items: center;
+  gap: 22px;
+
+  padding: 14px 24px;
+
+  background: #0f172a;
+
+  border-bottom: 1px solid #1e293b;
+}
+
+.workspace-header strong {
+  color: #ffffff;
+  font-size: 18px;
   font-weight: 800;
 }
 
+.workspace-header-room {
+  color: #94a3b8;
+  font-size: 14px;
+}
 
-.workspace-label {
-  margin: 0 0 16px;
+.workspace-header-status {
+  margin-left: auto;
+  color: #34d399;
+  font-size: 14px;
+  font-weight: 600;
+}
 
-  color: #64748b;
-
-  font-size: 12px;
-
-  text-transform: uppercase;
-
-  letter-spacing: 1.5px;
+.workspace-header-users {
+  color: #cbd5e1;
+  font-size: 14px;
 }
 
 
-/* =====================================
-   NAV BUTTON
-===================================== */
+/* =====================================================
+   BODY
+===================================================== */
+
+.workspace-body {
+  display: flex;
+  min-height: calc(100vh - 70px);
+}
+
+
+/* =====================================================
+   SIDEBAR
+===================================================== */
+
+.workspace-sidebar {
+  width: 230px;
+  flex-shrink: 0;
+
+  padding: 20px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #0f172a,
+      #0b1120
+    );
+
+  border-right: 1px solid #1e293b;
+}
+
+
+/* =====================================================
+   BRAND
+===================================================== */
+
+.workspace-brand {
+  color: #ffffff;
+
+  font-size: 20px;
+  font-weight: 800;
+
+  margin-bottom: 18px;
+}
+
+
+/* =====================================================
+   ROOM NAME
+===================================================== */
+
+.workspace-room-name {
+  padding: 10px 12px;
+
+  margin-bottom: 24px;
+
+  border-radius: 9px;
+
+  background: #172033;
+
+  color: #60a5fa;
+
+  font-size: 14px;
+  font-weight: 600;
+
+  border: 1px solid #263449;
+}
+
+
+/* =====================================================
+   NAVIGATION LABEL
+===================================================== */
+
+.workspace-label {
+  margin-bottom: 10px;
+
+  color: #64748b;
+
+  font-size: 11px;
+  font-weight: 800;
+
+  text-transform: uppercase;
+
+  letter-spacing: 1px;
+}
+
+
+/* =====================================================
+   NAVIGATION BUTTON
+===================================================== */
 
 .workspace-nav-button {
   width: 100%;
@@ -99,7 +201,7 @@ body {
 
   border: 1px solid transparent;
 
-  border-radius: 10px;
+  border-radius: 9px;
 
   background: #1e293b;
 
@@ -110,7 +212,7 @@ body {
   text-align: left;
 
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 600;
 
   transition:
     background 0.2s ease,
@@ -119,20 +221,25 @@ body {
     border-color 0.2s ease;
 }
 
-
-.workspace-nav-button span {
-  font-size: 17px;
-}
-
-
 .workspace-nav-button:hover {
-  background: #334155;
+  background: #263449;
 
-  color: white;
+  color: #ffffff;
 
   transform: translateX(2px);
 }
 
+.workspace-nav-icon {
+  width: 22px;
+
+  display: inline-flex;
+
+  justify-content: center;
+
+  align-items: center;
+
+  font-size: 17px;
+}
 
 .workspace-nav-active {
   background:
@@ -140,199 +247,149 @@ body {
       135deg,
       #2563eb,
       #4f46e5
-    );
+    ) !important;
 
-  color: white;
+  color: #ffffff !important;
 
   border-color:
-    rgba(147, 197, 253, 0.2);
+    rgba(96, 165, 250, 0.35);
 
   box-shadow:
-    0 8px 20px
+    0 8px 22px
     rgba(37, 99, 235, 0.25);
 }
 
 
-/* =====================================
-   LEAVE BUTTON
-===================================== */
+/* =====================================================
+   LEAVE WORKSPACE
+===================================================== */
 
-.workspace-leave-button {
+.leave-workspace-button {
   width: 100%;
 
-  margin-top: 12px;
+  margin-top: 14px;
 
   padding: 11px 14px;
 
   border: 1px solid
     rgba(248, 113, 113, 0.2);
 
-  border-radius: 10px;
+  border-radius: 9px;
 
   background:
-    rgba(220, 38, 38, 0.12);
+    linear-gradient(
+      135deg,
+      #dc2626,
+      #991b1b
+    );
 
-  color: #fca5a5;
+  color: #ffffff;
 
   cursor: pointer;
 
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 700;
 
   transition:
-    background 0.2s ease,
-    color 0.2s ease,
+    filter 0.2s ease,
     transform 0.2s ease;
-}
-
-
-.workspace-leave-button:hover {
-  background: #dc2626;
-
-  color: white;
-
-  transform: translateY(-1px);
-}
-
-
-/* =====================================
-   RESPONSIVE
-===================================== */
-
-@media (max-width: 700px) {
-  .workspace-navigation {
-    padding: 14px;
-  }
-
-  .workspace-nav-button {
-    padding: 11px 12px;
-  }
-}
-
-/* =========================================================
-   DAY 12 WORKSPACE FIX
-   ========================================================= */
-
-.workspace-shell {
-  min-height: 100vh;
-  width: 100%;
-  padding: 20px;
-}
-
-/* LEFT NAVIGATION */
-
-.workspace-navigation {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.workspace-brand {
-  color: #ffffff;
-  font-size: 20px;
-  font-weight: 800;
-  margin-bottom: 4px;
-}
-
-.workspace-room-name {
-  color: #60a5fa;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 8px 0;
-}
-
-.workspace-label {
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  margin: 8px 0;
-}
-
-.workspace-nav-icon {
-  width: 24px;
-  display: inline-flex;
-  justify-content: center;
-  margin-right: 8px;
-}
-
-.workspace-nav-button {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-
-  padding: 12px 14px;
-
-  border: 1px solid transparent;
-  border-radius: 10px;
-
-  background: #1e293b;
-  color: #cbd5e1;
-
-  cursor: pointer;
-
-  text-align: left;
-  font-size: 14px;
-  font-weight: 600;
-
-  transition: 0.2s ease;
-}
-
-.workspace-nav-button:hover {
-  background: #334155;
-  color: #ffffff;
-  transform: translateX(2px);
-}
-
-.workspace-nav-active {
-  background: linear-gradient(
-    135deg,
-    #2563eb,
-    #4f46e5
-  ) !important;
-
-  color: #ffffff !important;
-
-  border-color: rgba(96, 165, 250, 0.4);
-
-  box-shadow:
-    0 8px 24px rgba(37, 99, 235, 0.25);
-}
-
-/* LEAVE */
-
-.leave-workspace-button {
-  width: 100%;
-
-  margin-top: 12px;
-
-  padding: 11px 14px;
-
-  border: none;
-  border-radius: 10px;
-
-  background: linear-gradient(
-    135deg,
-    #dc2626,
-    #991b1b
-  );
-
-  color: white;
-
-  font-weight: 700;
-
-  cursor: pointer;
-
-  transition: 0.2s ease;
 }
 
 .leave-workspace-button:hover {
   filter: brightness(1.1);
+
   transform: translateY(-1px);
 }
 
-/* ROOM PANEL */
+
+/* =====================================================
+   MAIN CONTENT
+===================================================== */
+
+.workspace-content {
+  flex: 1;
+
+  min-width: 0;
+
+  padding: 24px;
+
+  overflow-y: auto;
+}
+
+
+/* =====================================================
+   ROOM CONTAINER
+===================================================== */
+
+.workspace-room-container {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+
+/* =====================================================
+   ACTIVE SECTION
+===================================================== */
+
+.workspace-section {
+  width: 100%;
+  min-height: 400px;
+}
+
+
+/* =====================================================
+   EMPTY STATE
+===================================================== */
+
+.workspace-empty {
+  min-height: 400px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  align-items: center;
+
+  justify-content: center;
+
+  text-align: center;
+
+  padding: 30px;
+
+  background: #0f172a;
+
+  border: 1px solid #1e293b;
+
+  border-radius: 14px;
+}
+
+.workspace-empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.workspace-empty h2 {
+  margin: 0 0 8px;
+
+  color: #ffffff;
+
+  font-size: 24px;
+}
+
+.workspace-empty p {
+  max-width: 500px;
+
+  margin: 0;
+
+  color: #94a3b8;
+
+  line-height: 1.6;
+}
+
+
+/* =====================================================
+   ROOM PANEL
+===================================================== */
 
 .room-panel {
   width: 100%;
@@ -351,7 +408,8 @@ body {
   border: 1px solid #334155;
 
   box-shadow:
-    0 12px 30px rgba(0, 0, 0, 0.2);
+    0 12px 30px
+    rgba(0, 0, 0, 0.2);
 }
 
 .room-panel h2 {
@@ -369,6 +427,11 @@ body {
 
   font-size: 13px;
 }
+
+
+/* =====================================================
+   ROOM FORM
+===================================================== */
 
 .room-field {
   margin-bottom: 15px;
@@ -391,27 +454,44 @@ body {
   padding: 12px 13px;
 
   border: 1px solid #475569;
+
   border-radius: 9px;
 
   outline: none;
 
   background: #0f172a;
+
   color: #ffffff;
 
   font-size: 14px;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.room-field input::placeholder {
+  color: #64748b;
 }
 
 .room-field input:focus {
   border-color: #3b82f6;
 
   box-shadow:
-    0 0 0 3px rgba(59, 130, 246, 0.12);
+    0 0 0 3px
+    rgba(59, 130, 246, 0.12);
 }
 
 .room-field input:disabled {
   opacity: 0.65;
+
   cursor: not-allowed;
 }
+
+
+/* =====================================================
+   JOIN BUTTON
+===================================================== */
 
 .room-join-button {
   width: 100%;
@@ -419,25 +499,42 @@ body {
   padding: 12px 18px;
 
   border: none;
+
   border-radius: 9px;
 
-  background: linear-gradient(
-    135deg,
-    #2563eb,
-    #4f46e5
-  );
+  background:
+    linear-gradient(
+      135deg,
+      #2563eb,
+      #4f46e5
+    );
 
-  color: white;
+  color: #ffffff;
 
   font-size: 14px;
   font-weight: 700;
 
   cursor: pointer;
+
+  transition:
+    filter 0.2s ease,
+    transform 0.2s ease;
 }
 
 .room-join-button:hover {
   filter: brightness(1.08);
+
+  transform: translateY(-1px);
 }
+
+.room-join-button:active {
+  transform: translateY(0);
+}
+
+
+/* =====================================================
+   JOINED ROOM
+===================================================== */
 
 .room-joined-box {
   margin-top: 15px;
@@ -475,285 +572,52 @@ body {
   font-size: 13px;
 }
 
-/* MAIN */
 
-.workspace-main-content {
-  width: 100%;
-  min-width: 0;
-}
-
-.workspace-empty-state {
-  min-height: 300px;
-
-  display: flex;
-  flex-direction: column;
-
-  align-items: center;
-  justify-content: center;
-
-  text-align: center;
-
-  background: #0f172a;
-
-  border: 1px solid #1e293b;
-
-  border-radius: 14px;
-}
-
-.workspace-empty-state h2 {
-  color: #ffffff;
-}
-
-.workspace-empty-state p {
-  color: #94a3b8;
-}
-
-/* RESPONSIVE */
-
-@media (max-width: 900px) {
-  .workspace-shell {
-    padding: 12px;
-  }
-
-  .workspace-navigation {
-    margin-bottom: 15px;
-  }
-
-  .workspace-nav-button {
-    display: inline-flex;
-    width: auto;
-    min-width: 120px;
-  }
-}
 /* =====================================================
-   SYNCSPACE WORKSPACE LAYOUT
-   ===================================================== */
+   DISCONNECT BANNER
+===================================================== */
 
-.workspace-shell {
-  min-height: 100vh;
+.disconnect-banner {
+  position: fixed;
+
+  top: 0;
+  left: 0;
+  right: 0;
+
+  z-index: 9999;
+}
+
+
+/* =====================================================
+   SCROLLBAR
+===================================================== */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
   background: #020617;
-  color: #e2e8f0;
 }
 
-/* HEADER */
+::-webkit-scrollbar-thumb {
+  background: #334155;
 
-.workspace-header {
-  height: 70px;
-
-  display: flex;
-  align-items: center;
-  gap: 25px;
-
-  padding: 0 24px;
-
-  background: #0f172a;
-
-  border-bottom: 1px solid #1e293b;
+  border-radius: 10px;
 }
 
-.workspace-header strong {
-  color: white;
-  font-size: 18px;
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
 }
 
-.workspace-header-room {
-  margin-left: 15px;
-  color: #94a3b8;
-  font-size: 14px;
-}
 
-.workspace-header-status {
-  margin-left: auto;
-  color: #34d399;
-  font-size: 14px;
-}
-
-.workspace-header-users {
-  color: #cbd5e1;
-  font-size: 14px;
-}
-
-/* BODY */
-
-.workspace-body {
-  display: flex;
-  min-height: calc(100vh - 70px);
-}
-
-/* SIDEBAR */
-
-.workspace-sidebar {
-  width: 230px;
-  flex-shrink: 0;
-
-  padding: 20px;
-
-  background:
-    linear-gradient(
-      180deg,
-      #0f172a,
-      #0b1120
-    );
-
-  border-right: 1px solid #1e293b;
-}
-
-/* BRAND */
-
-.workspace-brand {
-  color: white;
-  font-size: 19px;
-  font-weight: 700;
-
-  margin-bottom: 18px;
-}
-
-.workspace-room-name {
-  padding: 10px 12px;
-
-  margin-bottom: 25px;
-
-  border-radius: 8px;
-
-  background: #172033;
-
-  color: #cbd5e1;
-
-  font-size: 14px;
-}
-
-.workspace-label {
-  margin-bottom: 10px;
-
-  color: #64748b;
-
-  font-size: 11px;
-
-  font-weight: 700;
-
-  text-transform: uppercase;
-
-  letter-spacing: 0.8px;
-}
-
-/* NAV BUTTON */
-
-.workspace-nav-button {
-  width: 100%;
-
-  display: flex;
-  align-items: center;
-
-  gap: 10px;
-
-  padding: 12px 14px;
-
-  margin-bottom: 8px;
-
-  border: 1px solid transparent;
-
-  border-radius: 9px;
-
-  background: #1e293b;
-
-  color: #cbd5e1;
-
-  cursor: pointer;
-
-  text-align: left;
-
-  font-size: 14px;
-
-  transition:
-    background 0.2s ease,
-    transform 0.2s ease,
-    border-color 0.2s ease;
-}
-
-.workspace-nav-button:hover {
-  background: #263449;
-  color: white;
-  transform: translateX(2px);
-}
-
-.workspace-nav-active {
-  background:
-    linear-gradient(
-      135deg,
-      #2563eb,
-      #4f46e5
-    ) !important;
-
-  color: white !important;
-
-  border-color: rgba(96, 165, 250, 0.3);
-
-  box-shadow:
-    0 8px 20px rgba(37, 99, 235, 0.2);
-}
-
-.workspace-nav-icon {
-  width: 22px;
-  text-align: center;
-}
-
-/* MAIN */
-
-.workspace-content {
-  flex: 1;
-
-  min-width: 0;
-
-  padding: 24px;
-
-  overflow-y: auto;
-}
-
-/* ROOM */
-
-.workspace-room-container {
-  margin-bottom: 20px;
-}
-
-/* ACTIVE SECTION */
-
-.workspace-section {
-  width: 100%;
-
-  min-height: 400px;
-}
-
-/* EMPTY */
-
-.workspace-empty {
-  min-height: 400px;
-
-  display: flex;
-  flex-direction: column;
-
-  align-items: center;
-  justify-content: center;
-
-  text-align: center;
-
-  background: #0f172a;
-
-  border: 1px solid #1e293b;
-
-  border-radius: 14px;
-}
-
-.workspace-empty h2 {
-  color: white;
-}
-
-.workspace-empty p {
-  color: #94a3b8;
-}
-
-/* MOBILE */
+/* =====================================================
+   MOBILE
+===================================================== */
 
 @media (max-width: 800px) {
+
   .workspace-body {
     flex-direction: column;
   }
@@ -761,26 +625,76 @@ body {
   .workspace-sidebar {
     width: 100%;
 
+    padding: 14px;
+
     border-right: none;
 
     border-bottom: 1px solid #1e293b;
   }
 
   .workspace-nav-button {
+    width: calc(50% - 5px);
+
     display: inline-flex;
 
-    width: calc(50% - 5px);
+    margin-right: 5px;
+  }
+
+  .workspace-content {
+    padding: 14px;
   }
 
   .workspace-header {
-    height: auto;
+    min-height: auto;
 
     padding: 15px;
 
     flex-wrap: wrap;
+
+    gap: 10px;
   }
 
   .workspace-header-status {
     margin-left: 0;
+  }
+
+  .workspace-header-users {
+    width: 100%;
+  }
+}
+
+
+/* =====================================================
+   SMALL MOBILE
+===================================================== */
+
+@media (max-width: 480px) {
+
+  .workspace-nav-button {
+    width: 100%;
+
+    margin-right: 0;
+  }
+
+  .workspace-sidebar {
+    padding: 12px;
+  }
+
+  .workspace-content {
+    padding: 10px;
+  }
+
+  .workspace-brand {
+    font-size: 18px;
+  }
+
+  .workspace-empty {
+    min-height: 300px;
+
+    padding: 20px;
+  }
+
+  .room-panel {
+    padding: 16px;
   }
 }

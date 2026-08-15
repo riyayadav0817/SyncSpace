@@ -1,6 +1,6 @@
-import { Component } from "react";
+import React from "react";
 
-class ErrorBoundary extends Component {
+class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
 
@@ -18,11 +18,8 @@ class ErrorBoundary extends Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error(
-      "SyncSpace Error Boundary:",
-      error,
-      errorInfo
-    );
+    console.error("🚨 SyncSpace Error:", error);
+    console.error("Component Stack:", errorInfo.componentStack);
   }
 
   handleReload = () => {
@@ -34,45 +31,73 @@ class ErrorBoundary extends Component {
       return (
         <div
           style={{
-            minHeight: "100vh",
-            background: "#0f172a",
-            color: "white",
+            minHeight: "300px",
+            padding: "40px",
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            padding: "30px",
+            background: "#0f172a",
+            color: "white",
+            borderRadius: "12px",
+            textAlign: "center",
           }}
         >
-          <div
+          <div style={{ fontSize: "50px" }}>
+            ⚠️
+          </div>
+
+          <h2 style={{ marginBottom: "8px" }}>
+            Workspace Error
+          </h2>
+
+          <p
             style={{
-              maxWidth: "500px",
-              textAlign: "center",
-              background: "#1e293b",
-              padding: "30px",
-              borderRadius: "12px",
+              color: "#94a3b8",
+              marginBottom: "20px",
             }}
           >
-            <h2>⚠️ Workspace Error</h2>
+            Something went wrong in this workspace.
+          </p>
 
-            <p style={{ color: "#94a3b8" }}>
-              Something went wrong in this workspace.
-            </p>
+          {/* TEMPORARY DEBUG ERROR */}
 
-            <button
-              type="button"
-              onClick={this.handleReload}
+          {this.state.error && (
+            <pre
               style={{
-                padding: "10px 18px",
-                border: "none",
+                width: "90%",
+                maxWidth: "800px",
+                padding: "15px",
+                background: "#020617",
+                color: "#fca5a5",
+                border: "1px solid #7f1d1d",
                 borderRadius: "8px",
-                background: "#2563eb",
-                color: "white",
-                cursor: "pointer",
+                textAlign: "left",
+                whiteSpace: "pre-wrap",
+                overflow: "auto",
+                fontSize: "13px",
               }}
             >
-              🔄 Reload Workspace
-            </button>
-          </div>
+              {this.state.error.toString()}
+            </pre>
+          )}
+
+          <button
+            type="button"
+            onClick={this.handleReload}
+            style={{
+              marginTop: "20px",
+              padding: "10px 18px",
+              border: "none",
+              borderRadius: "8px",
+              background: "#2563eb",
+              color: "white",
+              cursor: "pointer",
+              fontWeight: "600",
+            }}
+          >
+            🔄 Reload Workspace
+          </button>
         </div>
       );
     }

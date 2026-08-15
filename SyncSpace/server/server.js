@@ -23,22 +23,57 @@ app.get("/", (req, res) => {
   res.send("SyncSpace Server Running");
 });
 
+// ========================================
+// ROOM DATA
+// ========================================
+
 const roomUsers = {};
 const roomStates = {};
+
+const DEFAULT_CODE =
+  '// Welcome to SyncSpace\nconsole.log("Hello SyncSpace!");';
 
 const createRoomState = () => ({
   lines: [],
   texts: [],
-  code:
-    '// Welcome to SyncSpace\nconsole.log("Hello SyncSpace!");',
+  code: DEFAULT_CODE,
 });
 
-io.on("connection", (socket) => {
-  console.log("User connected:", socket.id);
+// ========================================
+// HELPERS
+// ========================================
 
-  // =========================
+const getUserName = (socket, roomId) => {
+  const user = roomUsers[roomId]?.find(
+    (member) => member.socketId === socket.id
+  );
+
+  return (
+    user?.name ||
+    `User-${socket.id.slice(0, 4)}`
+  );
+};
+
+const broadcastRoomUsers = (roomId) => {
+  io.to(roomId).emit(
+    "room-users",
+    roomUsers[roomId] || []
+  );
+};
+
+// ========================================
+// SOCKET CONNECTION
+// ========================================
+
+io.on("connection", (socket) => {
+  console.log(
+    "🟢 User connected:",
+    socket.id
+  );
+
+  // ======================================
   // JOIN ROOM
-  // =========================
+  // ======================================
 
   socket.on("join-room", (data) => {
     const roomId =
@@ -47,17 +82,29 @@ io.on("connection", (socket) => {
         : data?.roomId?.trim();
 
     const name =
-      typeof data === "object" && data?.name
+      typeof data === "object" &&
+      typeof data?.name === "string"
         ? data.name.trim()
         : `User-${socket.id.slice(0, 4)}`;
 
-    if (!roomId) return;
+    if (!roomId) {
+      return;
+    }
+
+    const safeName =
+      name.slice(0, 30) ||
+      `User-${socket.id.slice(0, 4)}`;
+
+    // ------------------------------------
+    // Leave previous room if necessary
+    // ------------------------------------
 
     if (
       socket.currentRoom &&
       socket.currentRoom !== roomId
     ) {
-      const oldRoom = socket.currentRoom;
+      const oldRoom =
+        socket.currentRoom;
 
       socket.leave(oldRoom);
 
@@ -68,10 +115,7 @@ io.on("connection", (socket) => {
               user.socketId !== socket.id
           );
 
-        io.to(oldRoom).emit(
-          "room-users",
-          roomUsers[oldRoom]
-        );
+        broadcastRoomUsers(oldRoom);
 
         if (
           roomUsers[oldRoom].length === 0
@@ -85,22 +129,30 @@ io.on("connection", (socket) => {
 
     socket.join(roomId);
 
+    // ------------------------------------
+    // Create room users
+    // ------------------------------------
+
     if (!roomUsers[roomId]) {
       roomUsers[roomId] = [];
     }
 
+    // Remove existing socket entry
     roomUsers[roomId] =
       roomUsers[roomId].filter(
         (user) =>
           user.socketId !== socket.id
       );
 
+    // Add current user
     roomUsers[roomId].push({
       socketId: socket.id,
-      name:
-        name ||
-        `User-${socket.id.slice(0, 4)}`,
+      name: safeName,
     });
+
+    // ------------------------------------
+    // Create room state
+    // ------------------------------------
 
     if (!roomStates[roomId]) {
       roomStates[roomId] =
@@ -108,23 +160,98 @@ io.on("connection", (socket) => {
     }
 
     console.log(
-      `${name} joined room: ${roomId}`
+      `🚀 ${safeName} joined room: ${roomId}`
     );
 
-    io.to(roomId).emit(
-      "room-users",
-      roomUsers[roomId]
-    );
+    // Send users to everyone
+    broadcastRoomUsers(roomId);
 
+    // Send current room state
     socket.emit(
       "room-state",
       roomStates[roomId]
     );
   });
 
-  // =========================
+  // ======================================
+  // CHANGE NAME
+  // ======================================
+
+  socket.on("change-name", (data) => {
+    const roomId =
+      socket.currentRoom;
+
+    if (!roomId) {
+      return;
+    }
+
+    const newName =
+      typeof data?.name === "string"
+        ? data.name.trim()
+        : "";
+
+    if (!newName) {
+      socket.emit("name-change-error", {
+        message:
+          "Name cannot be empty.",
+      });
+
+      return;
+    }
+
+    if (newName.length > 30) {
+      socket.emit("name-change-error", {
+        message:
+          "Name must be 30 characters or less.",
+      });
+
+      return;
+    }
+
+    if (!roomUsers[roomId]) {
+      return;
+    }
+
+    const user =
+      roomUsers[roomId].find(
+        (member) =>
+          member.socketId === socket.id
+      );
+
+    if (!user) {
+      return;
+    }
+
+    const oldName = user.name;
+
+    user.name = newName;
+
+    console.log(
+      `✏️ ${oldName} changed name to ${newName} in ${roomId}`
+    );
+
+    // Update everyone
+    broadcastRoomUsers(roomId);
+
+    // Confirm to current user
+    socket.emit("name-changed", {
+      name: newName,
+    });
+
+    // Optional system event
+    socket.to(roomId).emit(
+      "user-name-changed",
+      {
+        socketId: socket.id,
+        oldName,
+        newName,
+      }
+    );
+  });
+
+  // ======================================
   // DRAW LINE
-  // =========================
+  // ======================================
 
   socket.on("draw-line", (data) => {
     if (
@@ -145,9 +272,12 @@ io.on("connection", (socket) => {
       id:
         data.id ||
         `${socket.id}-${Date.now()}`,
+
       points: data.points,
+
       color:
         data.color || "#2563eb",
+
       brushSize:
         Number(data.brushSize) || 4,
     };
@@ -162,21 +292,27 @@ io.on("connection", (socket) => {
     );
   });
 
-  // =========================
+  // ======================================
   // UNDO
-  // =========================
+  // ======================================
 
   socket.on("undo", (data) => {
-    if (!data?.roomId) return;
+    if (!data?.roomId) {
+      return;
+    }
 
     const roomId = data.roomId;
 
-    if (!roomStates[roomId]) return;
+    if (!roomStates[roomId]) {
+      return;
+    }
 
     const lines =
       roomStates[roomId].lines;
 
-    if (lines.length === 0) return;
+    if (lines.length === 0) {
+      return;
+    }
 
     const removedLine =
       lines.pop();
@@ -189,9 +325,9 @@ io.on("connection", (socket) => {
     );
   });
 
-  // =========================
+  // ======================================
   // REDO
-  // =========================
+  // ======================================
 
   socket.on("redo", (data) => {
     if (
@@ -220,9 +356,9 @@ io.on("connection", (socket) => {
     );
   });
 
-  // =========================
+  // ======================================
   // ERASE LINE
-  // =========================
+  // ======================================
 
   socket.on("erase-line", (data) => {
     if (
@@ -234,7 +370,9 @@ io.on("connection", (socket) => {
 
     const roomId = data.roomId;
 
-    if (!roomStates[roomId]) return;
+    if (!roomStates[roomId]) {
+      return;
+    }
 
     const index =
       roomStates[roomId].lines.findIndex(
@@ -242,7 +380,9 @@ io.on("connection", (socket) => {
           line.id === data.lineId
       );
 
-    if (index === -1) return;
+    if (index === -1) {
+      return;
+    }
 
     const removedLine =
       roomStates[roomId].lines.splice(
@@ -259,9 +399,9 @@ io.on("connection", (socket) => {
     );
   });
 
-  // =========================
+  // ======================================
   // ADD TEXT
-  // =========================
+  // ======================================
 
   socket.on("add-text", (data) => {
     if (
@@ -299,9 +439,9 @@ io.on("connection", (socket) => {
     );
   });
 
-  // =========================
+  // ======================================
   // DELETE TEXT
-  // =========================
+  // ======================================
 
   socket.on("delete-text", (data) => {
     if (
@@ -313,7 +453,9 @@ io.on("connection", (socket) => {
 
     const roomId = data.roomId;
 
-    if (!roomStates[roomId]) return;
+    if (!roomStates[roomId]) {
+      return;
+    }
 
     roomStates[roomId].texts =
       roomStates[roomId].texts.filter(
@@ -329,14 +471,23 @@ io.on("connection", (socket) => {
     );
   });
 
-  // =========================
+  // ======================================
   // CLEAR BOARD
-  // =========================
+  // ======================================
 
-  socket.on("clear-board", (roomId) => {
-    if (!roomId) return;
+  socket.on("clear-board", (data) => {
+    const roomId =
+      typeof data === "string"
+        ? data
+        : data?.roomId;
 
-    if (!roomStates[roomId]) return;
+    if (!roomId) {
+      return;
+    }
+
+    if (!roomStates[roomId]) {
+      return;
+    }
 
     roomStates[roomId].lines = [];
     roomStates[roomId].texts = [];
@@ -346,12 +497,14 @@ io.on("connection", (socket) => {
     );
   });
 
-  // =========================
-  // CODE
-  // =========================
+  // ======================================
+  // CODE CHANGE
+  // ======================================
 
   socket.on("code-change", (data) => {
-    if (!data?.roomId) return;
+    if (!data?.roomId) {
+      return;
+    }
 
     const roomId = data.roomId;
 
@@ -376,19 +529,26 @@ io.on("connection", (socket) => {
     );
   });
 
-  // =========================
+  // ======================================
   // CHAT
-  // =========================
+  // ======================================
 
   socket.on("chat-message", (data) => {
     if (
       !data?.roomId ||
-      !data?.message
+      typeof data.message !== "string"
     ) {
       return;
     }
 
     const roomId = data.roomId;
+
+    const message =
+      data.message.trim();
+
+    if (!message) {
+      return;
+    }
 
     const user =
       roomUsers[roomId]?.find(
@@ -396,33 +556,46 @@ io.on("connection", (socket) => {
           member.socketId === socket.id
       );
 
-    const userName = user
-      ? user.name
-      : `User-${socket.id.slice(0, 4)}`;
+    const userName =
+      user?.name ||
+      `User-${socket.id.slice(0, 4)}`;
 
     io.to(roomId).emit(
       "chat-message",
       {
+        id:
+          `${socket.id}-${Date.now()}`,
+
+        socketId: socket.id,
+
         user: userName,
-        message: data.message,
+
+        message,
+
+        timestamp: Date.now(),
       }
     );
   });
 
-  // =========================
-  // DISCONNECT
-  // =========================
+  // ======================================
+  // LEAVE ROOM
+  // ======================================
 
-  socket.on("disconnect", () => {
-    console.log(
-      "User disconnected:",
-      socket.id
-    );
-
+  socket.on("leave-room", (data) => {
     const roomId =
-      socket.currentRoom;
+      typeof data === "string"
+        ? data
+        : data?.roomId;
 
-    if (!roomId) return;
+    if (!roomId) {
+      return;
+    }
+
+    if (socket.currentRoom !== roomId) {
+      return;
+    }
+
+    socket.leave(roomId);
 
     if (roomUsers[roomId]) {
       roomUsers[roomId] =
@@ -431,10 +604,48 @@ io.on("connection", (socket) => {
             user.socketId !== socket.id
         );
 
-      io.to(roomId).emit(
-        "room-users",
-        roomUsers[roomId]
-      );
+      broadcastRoomUsers(roomId);
+
+      if (
+        roomUsers[roomId].length === 0
+      ) {
+        delete roomUsers[roomId];
+      }
+    }
+
+    socket.currentRoom = null;
+
+    console.log(
+      `🚪 ${socket.id} left room: ${roomId}`
+    );
+  });
+
+  // ======================================
+  // DISCONNECT
+  // ======================================
+
+  socket.on("disconnect", (reason) => {
+    console.log(
+      "🔴 User disconnected:",
+      socket.id,
+      reason
+    );
+
+    const roomId =
+      socket.currentRoom;
+
+    if (!roomId) {
+      return;
+    }
+
+    if (roomUsers[roomId]) {
+      roomUsers[roomId] =
+        roomUsers[roomId].filter(
+          (user) =>
+            user.socketId !== socket.id
+        );
+
+      broadcastRoomUsers(roomId);
 
       if (
         roomUsers[roomId].length === 0
@@ -446,6 +657,10 @@ io.on("connection", (socket) => {
     socket.currentRoom = null;
   });
 });
+
+// ========================================
+// START SERVER
+// ========================================
 
 server.listen(5000, () => {
   console.log(

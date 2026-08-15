@@ -15,9 +15,9 @@ function CodeEditor({
   const [output, setOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);
 
-  // =========================
+  // ==========================================
   // RECEIVE CODE FROM SERVER
-  // =========================
+  // ==========================================
 
   useEffect(() => {
     if (!socket) return;
@@ -37,9 +37,9 @@ function CodeEditor({
     };
   }, [socket, setCode]);
 
-  // =========================
+  // ==========================================
   // CODE CHANGE
-  // =========================
+  // ==========================================
 
   const handleCodeChange = (value) => {
     const newCode = value || "";
@@ -56,17 +56,17 @@ function CodeEditor({
     });
   };
 
-  // =========================
-  // EDITOR READY
-  // =========================
+  // ==========================================
+  // EDITOR MOUNT
+  // ==========================================
 
   const handleEditorMount = (editor) => {
     editorRef.current = editor;
   };
 
-  // =========================
-  // COPY CODE
-  // =========================
+  // ==========================================
+  // COPY
+  // ==========================================
 
   const copyCode = async () => {
     try {
@@ -79,13 +79,13 @@ function CodeEditor({
       }, 1500);
     } catch (error) {
       console.error("Copy failed:", error);
-      alert("Unable to copy code");
+      alert("Unable to copy code.");
     }
   };
 
-  // =========================
+  // ==========================================
   // CLEAR CODE
-  // =========================
+  // ==========================================
 
   const clearCode = () => {
     const confirmed = window.confirm(
@@ -100,13 +100,29 @@ function CodeEditor({
     setOutput("");
   };
 
-  // =========================
+  // ==========================================
+  // FORMAT VALUE FOR OUTPUT
+  // ==========================================
+
+  const formatValue = (value) => {
+    if (typeof value === "object" && value !== null) {
+      try {
+        return JSON.stringify(value, null, 2);
+      } catch {
+        return String(value);
+      }
+    }
+
+    return String(value);
+  };
+
+  // ==========================================
   // RUN JAVASCRIPT
-  // =========================
+  // ==========================================
 
   const runJavaScript = () => {
     if (!code.trim()) {
-      setOutput("No code to run.");
+      setOutput("⚠️ No code to run.");
       return;
     }
 
@@ -118,55 +134,39 @@ function CodeEditor({
     const originalLog = console.log;
     const originalWarn = console.warn;
     const originalError = console.error;
+    const originalInfo = console.info;
 
     try {
-      // Capture console.log
       console.log = (...args) => {
         logs.push(
-          args
-            .map((item) => {
-              if (typeof item === "object") {
-                try {
-                  return JSON.stringify(item, null, 2);
-                } catch {
-                  return String(item);
-                }
-              }
-
-              return String(item);
-            })
-            .join(" ")
+          args.map(formatValue).join(" ")
         );
       };
 
-      // Capture console.warn
       console.warn = (...args) => {
         logs.push(
-          "⚠️ " +
-            args
-              .map((item) => String(item))
-              .join(" ")
+          `⚠️ ${args.map(formatValue).join(" ")}`
         );
       };
 
-      // Capture console.error
       console.error = (...args) => {
         logs.push(
-          "❌ " +
-            args
-              .map((item) => String(item))
-              .join(" ")
+          `❌ ${args.map(formatValue).join(" ")}`
         );
       };
 
-      // Basic JavaScript execution
-      // Day 26 mein proper sandbox/API execution add karenge.
+      console.info = (...args) => {
+        logs.push(
+          `ℹ️ ${args.map(formatValue).join(" ")}`
+        );
+      };
+
       const execute = new Function(code);
 
       const result = execute();
 
       if (result !== undefined) {
-        logs.push(String(result));
+        logs.push(formatValue(result));
       }
 
       if (logs.length === 0) {
@@ -182,21 +182,27 @@ function CodeEditor({
       console.log = originalLog;
       console.warn = originalWarn;
       console.error = originalError;
+      console.info = originalInfo;
 
       setIsRunning(false);
     }
   };
 
-  // =========================
+  // ==========================================
   // RUN CODE
-  // =========================
+  // ==========================================
 
   const runCode = () => {
+    if (!code.trim()) {
+      setOutput("⚠️ No code to run.");
+      return;
+    }
+
     if (language !== "javascript") {
       setOutput(
-        `⚠️ ${language} execution is not available yet.\n\n` +
-          "Currently only JavaScript execution is supported.\n" +
-          "Python, C++, Java etc. will be added in the execution-engine phase."
+        `⚠️ ${language.toUpperCase()} execution is not available yet.\n\n` +
+          "Currently JavaScript execution is supported.\n" +
+          "Python, C++, Java and other languages will be connected to the execution engine later."
       );
 
       return;
@@ -205,29 +211,30 @@ function CodeEditor({
     runJavaScript();
   };
 
-  // =========================
+  // ==========================================
   // CLEAR OUTPUT
-  // =========================
+  // ==========================================
 
   const clearOutput = () => {
     setOutput("");
   };
 
-  // =========================
-  // SAVE SHORTCUT
-  // =========================
+  // ==========================================
+  // KEYBOARD SHORTCUTS
+  // ==========================================
 
   const handleEditorKeyDown = (event) => {
+    // Ctrl + S
     if (
       (event.ctrlKey || event.metaKey) &&
-      event.key === "s"
+      event.key.toLowerCase() === "s"
     ) {
       event.preventDefault();
 
-      console.log("Code saved locally");
+      console.log("Code saved locally.");
     }
 
-    // Ctrl + Enter = Run
+    // Ctrl + Enter
     if (
       (event.ctrlKey || event.metaKey) &&
       event.key === "Enter"
@@ -238,55 +245,150 @@ function CodeEditor({
     }
   };
 
+  // ==========================================
+  // LANGUAGE LABEL
+  // ==========================================
+
+  const languageLabel = {
+    javascript: "JavaScript",
+    typescript: "TypeScript",
+    python: "Python",
+    java: "Java",
+    cpp: "C++",
+    html: "HTML",
+    css: "CSS",
+    json: "JSON",
+  };
+
+  // ==========================================
+  // UI
+  // ==========================================
+
   return (
     <div
       style={{
-        background: "#1e293b",
-        padding: "20px",
-        borderRadius: "12px",
+        width: "100%",
         marginTop: "20px",
+        background: "#0b1120",
+        border: "1px solid #1e293b",
+        borderRadius: "14px",
+        overflow: "hidden",
+        boxShadow:
+          "0 15px 40px rgba(0,0,0,0.25)",
       }}
     >
-      {/* =========================
-          HEADER
-      ========================= */}
+      {/* =====================================
+          TOP HEADER
+      ===================================== */}
 
       <div
         style={{
           display: "flex",
-          justifyContent: "space-between",
           alignItems: "center",
+          justifyContent: "space-between",
+          gap: "15px",
+          padding: "14px 18px",
+          background: "#111827",
+          borderBottom: "1px solid #1f2937",
           flexWrap: "wrap",
-          gap: "12px",
-          marginBottom: "15px",
         }}
       >
-        <div>
-          <h2
-            style={{
-              margin: 0,
-              color: "white",
-            }}
-          >
-            💻 Code Editor
-          </h2>
+        {/* TITLE */}
 
-          <p
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+          }}
+        >
+          <div
             style={{
-              margin: "5px 0 0",
-              color: "#94a3b8",
-              fontSize: "13px",
+              width: "38px",
+              height: "38px",
+              borderRadius: "9px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "#1e293b",
+              fontSize: "20px",
             }}
           >
-            {joinedRoom
-              ? `🟢 Connected to Room ${joinedRoom}`
-              : "🔴 Join a room to collaborate"}
-          </p>
+            💻
+          </div>
+
+          <div>
+            <div
+              style={{
+                color: "#f8fafc",
+                fontWeight: "700",
+                fontSize: "17px",
+              }}
+            >
+              SyncSpace Code
+            </div>
+
+            <div
+              style={{
+                color: "#64748b",
+                fontSize: "12px",
+                marginTop: "2px",
+              }}
+            >
+              Collaborative Code Editor
+            </div>
+          </div>
         </div>
 
-        {/* =========================
-            CONTROLS
-        ========================= */}
+        {/* CONNECTION */}
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "7px",
+            padding: "7px 11px",
+            borderRadius: "20px",
+            background: joinedRoom
+              ? "rgba(22,163,74,0.12)"
+              : "rgba(220,38,38,0.12)",
+            border: joinedRoom
+              ? "1px solid rgba(34,197,94,0.25)"
+              : "1px solid rgba(248,113,113,0.25)",
+            color: joinedRoom
+              ? "#4ade80"
+              : "#f87171",
+            fontSize: "12px",
+            fontWeight: "600",
+          }}
+        >
+          <span>
+            {joinedRoom ? "●" : "●"}
+          </span>
+
+          {joinedRoom
+            ? `Room ${joinedRoom}`
+            : "Not connected"}
+        </div>
+      </div>
+
+      {/* =====================================
+          TOOLBAR
+      ===================================== */}
+
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "10px",
+          padding: "10px 14px",
+          background: "#0f172a",
+          borderBottom: "1px solid #1e293b",
+          flexWrap: "wrap",
+        }}
+      >
+        {/* LEFT CONTROLS */}
 
         <div
           style={{
@@ -300,15 +402,21 @@ function CodeEditor({
 
           <select
             value={language}
-            onChange={(e) =>
-              setLanguage(e.target.value)
-            }
+            onChange={(e) => {
+              setLanguage(e.target.value);
+              setOutput("");
+            }}
             style={{
-              padding: "8px 12px",
+              height: "34px",
+              padding: "0 11px",
+              background: "#1e293b",
+              color: "#e2e8f0",
+              border: "1px solid #334155",
               borderRadius: "6px",
-              border: "none",
               outline: "none",
               cursor: "pointer",
+              fontSize: "13px",
+              fontWeight: "600",
             }}
           >
             <option value="javascript">
@@ -344,6 +452,42 @@ function CodeEditor({
             </option>
           </select>
 
+          {/* FILE */}
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "7px",
+              height: "34px",
+              padding: "0 12px",
+              background: "#172033",
+              border: "1px solid #263449",
+              borderRadius: "6px",
+              color: "#cbd5e1",
+              fontSize: "13px",
+            }}
+          >
+            📄
+
+            <span>
+              {language === "javascript"
+                ? "main.js"
+                : `main.${language}`}
+            </span>
+          </div>
+        </div>
+
+        {/* RIGHT CONTROLS */}
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "7px",
+            flexWrap: "wrap",
+          }}
+        >
           {/* RUN */}
 
           <button
@@ -351,9 +495,10 @@ function CodeEditor({
             onClick={runCode}
             disabled={isRunning}
             style={{
-              padding: "8px 15px",
+              height: "34px",
+              padding: "0 14px",
               background: isRunning
-                ? "#475569"
+                ? "#334155"
                 : "#16a34a",
               color: "white",
               border: "none",
@@ -362,6 +507,7 @@ function CodeEditor({
                 ? "not-allowed"
                 : "pointer",
               fontWeight: "700",
+              fontSize: "13px",
             }}
           >
             {isRunning
@@ -375,16 +521,18 @@ function CodeEditor({
             type="button"
             onClick={copyCode}
             style={{
-              padding: "8px 13px",
-              background: "#2563eb",
-              color: "white",
-              border: "none",
+              height: "34px",
+              padding: "0 12px",
+              background: "#1e293b",
+              color: "#cbd5e1",
+              border: "1px solid #334155",
               borderRadius: "6px",
               cursor: "pointer",
+              fontSize: "13px",
             }}
           >
             {copied
-              ? "✅ Copied"
+              ? "✓ Copied"
               : "📋 Copy"}
           </button>
 
@@ -394,12 +542,14 @@ function CodeEditor({
             type="button"
             onClick={clearCode}
             style={{
-              padding: "8px 13px",
-              background: "#dc2626",
-              color: "white",
-              border: "none",
+              height: "34px",
+              padding: "0 12px",
+              background: "#1e293b",
+              color: "#fca5a5",
+              border: "1px solid #334155",
               borderRadius: "6px",
               cursor: "pointer",
+              fontSize: "13px",
             }}
           >
             🗑 Clear
@@ -407,102 +557,159 @@ function CodeEditor({
         </div>
       </div>
 
-      {/* =========================
-          EDITOR
-      ========================= */}
+      {/* =====================================
+          EDITOR AREA
+      ===================================== */}
 
       <div
         style={{
-          borderRadius: "8px",
-          overflow: "hidden",
-          border: "1px solid #334155",
+          display: "flex",
+          width: "100%",
+          background: "#1e1e1e",
         }}
       >
-        <Editor
-          height="500px"
-          language={language}
-          theme="vs-dark"
-          value={code}
-          onChange={handleCodeChange}
-          onMount={handleEditorMount}
-          options={{
-            fontSize: 15,
-
-            lineNumbers: "on",
-
-            minimap: {
-              enabled: false,
-            },
-
-            automaticLayout: true,
-
-            wordWrap: "on",
-
-            smoothScrolling: true,
-
-            cursorBlinking: "smooth",
-
-            suggestOnTriggerCharacters: true,
-
-            formatOnPaste: true,
-
-            formatOnType: true,
-
-            bracketPairColorization: {
-              enabled: true,
-            },
-
-            scrollBeyondLastLine: false,
-
-            quickSuggestions: true,
-          }}
-          onKeyDown={handleEditorKeyDown}
-        />
-      </div>
-
-      {/* =========================
-          OUTPUT
-      ========================= */}
-
-      <div
-        style={{
-          marginTop: "15px",
-          background: "#020617",
-          border: "1px solid #334155",
-          borderRadius: "8px",
-          overflow: "hidden",
-        }}
-      >
-        {/* OUTPUT HEADER */}
+        {/* EDITOR */}
 
         <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            padding: "10px 14px",
-            borderBottom:
-              "1px solid #334155",
+            flex: 1,
+            minWidth: 0,
           }}
         >
-          <strong
+          <Editor
+            height="520px"
+            language={language}
+            theme="vs-dark"
+            value={code}
+            onChange={handleCodeChange}
+            onMount={handleEditorMount}
+            options={{
+              fontSize: 15,
+
+              fontFamily:
+                "'JetBrains Mono', 'Fira Code', Consolas, monospace",
+
+              lineHeight: 23,
+
+              lineNumbers: "on",
+
+              lineNumbersMinChars: 3,
+
+              minimap: {
+                enabled: true,
+              },
+
+              automaticLayout: true,
+
+              wordWrap: "on",
+
+              smoothScrolling: true,
+
+              cursorBlinking: "smooth",
+
+              cursorSmoothCaretAnimation: "on",
+
+              suggestOnTriggerCharacters: true,
+
+              quickSuggestions: true,
+
+              formatOnPaste: true,
+
+              formatOnType: true,
+
+              bracketPairColorization: {
+                enabled: true,
+              },
+
+              guides: {
+                bracketPairs: true,
+                indentation: true,
+              },
+
+              scrollBeyondLastLine: false,
+
+              folding: true,
+
+              foldingHighlight: true,
+
+              renderWhitespace: "selection",
+
+              padding: {
+                top: 12,
+                bottom: 12,
+              },
+
+              tabSize: 2,
+
+              insertSpaces: true,
+
+              detectIndentation: true,
+
+              overviewRulerBorder: false,
+
+              scrollbar: {
+                verticalScrollbarSize: 10,
+                horizontalScrollbarSize: 10,
+              },
+            }}
+            onKeyDown={handleEditorKeyDown}
+          />
+        </div>
+      </div>
+
+      {/* =====================================
+          TERMINAL / OUTPUT HEADER
+      ===================================== */}
+
+      <div
+        style={{
+          background: "#0f172a",
+          borderTop: "1px solid #1e293b",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "10px 15px",
+            borderBottom: "1px solid #1e293b",
+          }}
+        >
+          <div
             style={{
-              color: "#e2e8f0",
-              fontSize: "14px",
+              display: "flex",
+              alignItems: "center",
+              gap: "15px",
             }}
           >
-            📤 Output
-          </strong>
+            <span
+              style={{
+                color: "#f8fafc",
+                fontSize: "13px",
+                fontWeight: "700",
+              }}
+            >
+              TERMINAL
+            </span>
+
+            <span
+              style={{
+                color: "#64748b",
+                fontSize: "12px",
+              }}
+            >
+              OUTPUT
+            </span>
+          </div>
 
           <button
             type="button"
             onClick={clearOutput}
             style={{
-              padding: "5px 10px",
-              background: "#334155",
-              color: "#cbd5e1",
               border: "none",
-              borderRadius: "5px",
+              background: "transparent",
+              color: "#94a3b8",
               cursor: "pointer",
               fontSize: "12px",
             }}
@@ -511,85 +718,97 @@ function CodeEditor({
           </button>
         </div>
 
-        {/* OUTPUT CONTENT */}
+        {/* =====================================
+            OUTPUT
+        ===================================== */}
 
-        <pre
+        <div
           style={{
-            margin: 0,
-            padding: "15px",
-            minHeight: "100px",
-            maxHeight: "250px",
+            background: "#020617",
+            minHeight: "120px",
+            maxHeight: "260px",
             overflow: "auto",
-            color: output.startsWith("❌")
-              ? "#fca5a5"
-              : "#86efac",
-            fontFamily:
-              "Consolas, Monaco, monospace",
-            fontSize: "13px",
-            whiteSpace: "pre-wrap",
           }}
         >
-          {output ||
-            "▶ Click Run to execute your JavaScript code."}
-        </pre>
+          <pre
+            style={{
+              margin: 0,
+              padding: "16px",
+              color: output.startsWith("❌")
+                ? "#fca5a5"
+                : output.startsWith("⚠️")
+                ? "#fcd34d"
+                : "#86efac",
+              fontFamily:
+                "'JetBrains Mono', Consolas, monospace",
+              fontSize: "13px",
+              lineHeight: "1.7",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+            }}
+          >
+            {output ||
+              "▶ Click Run or press Ctrl + Enter to execute your JavaScript code."}
+          </pre>
+        </div>
       </div>
 
-      {/* =========================
-          FOOTER
-      ========================= */}
+      {/* =====================================
+          STATUS BAR
+      ===================================== */}
 
       <div
         style={{
           display: "flex",
-          justifyContent: "space-between",
           alignItems: "center",
-          marginTop: "10px",
-          color: "#94a3b8",
-          fontSize: "13px",
+          justifyContent: "space-between",
+          gap: "12px",
+          padding: "7px 14px",
+          background: "#111827",
+          borderTop: "1px solid #1f2937",
+          color: "#64748b",
+          fontSize: "11px",
           flexWrap: "wrap",
-          gap: "8px",
         }}
       >
-        <span>
-          Language:{" "}
-          <strong
-            style={{
-              color: "white",
-            }}
-          >
-            {language}
-          </strong>
-        </span>
+        <div
+          style={{
+            display: "flex",
+            gap: "15px",
+            flexWrap: "wrap",
+          }}
+        >
+          <span>
+            Language:{" "}
+            <strong style={{ color: "#cbd5e1" }}>
+              {languageLabel[language] || language}
+            </strong>
+          </span>
 
-        <span>
-          Lines:{" "}
-          <strong
-            style={{
-              color: "white",
-            }}
-          >
-            {(code || "").split("\n").length}
-          </strong>
-        </span>
+          <span>
+            Lines:{" "}
+            <strong style={{ color: "#cbd5e1" }}>
+              {(code || "").split("\n").length}
+            </strong>
+          </span>
 
-        <span>
-          Characters:{" "}
-          <strong
-            style={{
-              color: "white",
-            }}
-          >
-            {(code || "").length}
-          </strong>
-        </span>
+          <span>
+            Characters:{" "}
+            <strong style={{ color: "#cbd5e1" }}>
+              {(code || "").length}
+            </strong>
+          </span>
+        </div>
 
-        <span>
-          💡 Ctrl + Enter = Run
-        </span>
-
-        <span>
-          Ctrl + S = Save
-        </span>
+        <div
+          style={{
+            display: "flex",
+            gap: "12px",
+          }}
+        >
+          <span>⌘/Ctrl + Enter Run</span>
+          <span>⌘/Ctrl + S Save</span>
+        </div>
       </div>
     </div>
   );
