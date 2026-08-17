@@ -1,59 +1,67 @@
-export function getOnlineUsers(awareness) {
+export function getOnlineUsers(
+  awareness,
+) {
   if (!awareness) {
     return [];
   }
 
   const users = [];
 
-  awareness.getStates().forEach(
-    (state, clientId) => {
-      const name =
-        state?.user?.name?.trim();
+  awareness
+    .getStates()
+    .forEach(
+      (state, clientId) => {
+        const name =
+          state?.user?.name?.trim();
 
-      if (!name) {
-        return;
-      }
+        if (!name) {
+          return;
+        }
 
-      users.push({
-        clientId,
-        name,
-      });
-    }
-  );
+        users.push({
+          clientId,
+          name,
+          cursor:
+            state?.cursor || null,
+        });
+      },
+    );
 
   return users;
 }
 
 export function subscribeToAwareness(
   awareness,
-  callback
+  callback,
 ) {
   if (
     !awareness ||
-    typeof callback !== "function"
+    typeof callback !==
+      "function"
   ) {
     return () => {};
   }
 
   const handleChange = () => {
     callback(
-      getOnlineUsers(awareness)
+      getOnlineUsers(
+        awareness,
+      ),
     );
   };
 
   awareness.on(
     "change",
-    handleChange
+    handleChange,
   );
 
-  callback(
-    getOnlineUsers(awareness)
-  );
+  // Initial state
+  handleChange();
 
   return () => {
     awareness.off(
       "change",
-      handleChange
+      handleChange,
     );
   };
 }
