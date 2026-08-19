@@ -35,7 +35,7 @@ function Login({ onLogin, onSwitch }) {
       setLoading(true);
 
       const response = await fetch(
-        "http://localhost:5000/api/auth/login",
+        "https://syncspace-8lew.onrender.com/api/auth/login",
         {
           method: "POST",
           headers: {
@@ -118,7 +118,7 @@ function Login({ onLogin, onSwitch }) {
       setForgotLoading(true);
 
       const response = await fetch(
-        "http://localhost:5000/api/auth/forgot-password",
+        "https://syncspace-8lew.onrender.com/api/auth/forgot-password",
         {
           method: "POST",
           headers: {
