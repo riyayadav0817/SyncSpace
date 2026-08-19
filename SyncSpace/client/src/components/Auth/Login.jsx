@@ -1,5 +1,8 @@
 import { useState } from "react";
 import "./auth.css";
+
+const API_URL = "https://syncspace-8lew.onrender.com";
+
 function Login({ onLogin, onSwitch }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,9 +28,7 @@ function Login({ onLogin, onSwitch }) {
     const cleanEmail = email.trim();
 
     if (!cleanEmail || !password) {
-      setError(
-        "Please enter your email and password."
-      );
+      setError("Please enter your email and password.");
       return;
     }
 
@@ -35,7 +36,7 @@ function Login({ onLogin, onSwitch }) {
       setLoading(true);
 
       const response = await fetch(
-        "https://syncspace-8lew.onrender.com/api/auth/login",
+        `${API_URL}/api/auth/login`,
         {
           method: "POST",
           headers: {
@@ -52,8 +53,7 @@ function Login({ onLogin, onSwitch }) {
 
       if (!response.ok || !data.success) {
         throw new Error(
-          data.message ||
-            "Invalid email or password."
+          data.message || "Invalid email or password."
         );
       }
 
@@ -108,9 +108,7 @@ function Login({ onLogin, onSwitch }) {
     const cleanEmail = email.trim();
 
     if (!cleanEmail) {
-      setError(
-        "Please enter your email address."
-      );
+      setError("Please enter your email address.");
       return;
     }
 
@@ -118,7 +116,7 @@ function Login({ onLogin, onSwitch }) {
       setForgotLoading(true);
 
       const response = await fetch(
-        "https://syncspace-8lew.onrender.com/api/auth/forgot-password",
+        `${API_URL}/api/auth/forgot-password`,
         {
           method: "POST",
           headers: {
@@ -170,54 +168,39 @@ function Login({ onLogin, onSwitch }) {
         </div>
 
         <div className="auth-card">
-
-          {/* Logo */}
           <div className="auth-logo">
             <div className="auth-logo-icon">
               S
             </div>
 
-            <span>
-              SyncSpace
-            </span>
+            <span>SyncSpace</span>
           </div>
 
-          {/* Heading */}
           <div className="auth-heading">
-            <h1>
-              Forgot password?
-            </h1>
+            <h1>Forgot password?</h1>
 
             <p>
-              Enter your email and
-              we'll send you a
+              Enter your email and we'll send you a
               password reset link.
             </p>
           </div>
 
-          {/* Error */}
           {error && (
             <div className="auth-error">
               <span>⚠️</span>
 
-              <span>
-                {error}
-              </span>
+              <span>{error}</span>
             </div>
           )}
 
-          {/* Success */}
           {forgotSuccess && (
             <div className="auth-success">
               <span>✓</span>
 
-              <span>
-                {forgotSuccess}
-              </span>
+              <span>{forgotSuccess}</span>
             </div>
           )}
 
-          {/* Forgot Form */}
           <form
             onSubmit={handleForgotPassword}
             className="auth-form"
@@ -238,9 +221,7 @@ function Login({ onLogin, onSwitch }) {
                   placeholder="you@example.com"
                   value={email}
                   onChange={(e) =>
-                    setEmail(
-                      e.target.value
-                    )
+                    setEmail(e.target.value)
                   }
                   autoComplete="email"
                   disabled={forgotLoading}
@@ -257,15 +238,11 @@ function Login({ onLogin, onSwitch }) {
                 <>
                   <span className="auth-spinner"></span>
 
-                  <span>
-                    Sending...
-                  </span>
+                  <span>Sending...</span>
                 </>
               ) : (
                 <>
-                  <span>
-                    Send reset link
-                  </span>
+                  <span>Send reset link</span>
 
                   <span className="auth-submit-arrow">
                     →
@@ -275,7 +252,6 @@ function Login({ onLogin, onSwitch }) {
             </button>
           </form>
 
-          {/* Back */}
           <div className="auth-register">
             <button
               type="button"
@@ -294,8 +270,8 @@ function Login({ onLogin, onSwitch }) {
             <span>🔐</span>
 
             <span>
-              Your workspace is protected
-              with secure authentication.
+              Your workspace is protected with secure
+              authentication.
             </span>
           </div>
         </div>
@@ -315,49 +291,35 @@ function Login({ onLogin, onSwitch }) {
       </div>
 
       <div className="auth-card">
-
-        {/* Logo */}
         <div className="auth-logo">
           <div className="auth-logo-icon">
             S
           </div>
 
-          <span>
-            SyncSpace
-          </span>
+          <span>SyncSpace</span>
         </div>
 
-        {/* Heading */}
         <div className="auth-heading">
-          <h1>
-            Welcome back
-          </h1>
+          <h1>Welcome back</h1>
 
           <p>
-            Sign in to continue to
-            your collaborative
+            Sign in to continue to your collaborative
             workspace.
           </p>
         </div>
 
-        {/* Error */}
         {error && (
           <div className="auth-error">
             <span>⚠️</span>
 
-            <span>
-              {error}
-            </span>
+            <span>{error}</span>
           </div>
         )}
 
-        {/* Form */}
         <form
           onSubmit={handleSubmit}
           className="auth-form"
         >
-
-          {/* Email */}
           <div className="auth-field">
             <label htmlFor="login-email">
               Email address
@@ -374,9 +336,7 @@ function Login({ onLogin, onSwitch }) {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) =>
-                  setEmail(
-                    e.target.value
-                  )
+                  setEmail(e.target.value)
                 }
                 autoComplete="email"
                 disabled={loading}
@@ -384,7 +344,6 @@ function Login({ onLogin, onSwitch }) {
             </div>
           </div>
 
-          {/* Password */}
           <div className="auth-field">
             <label htmlFor="login-password">
               Password
@@ -401,9 +360,7 @@ function Login({ onLogin, onSwitch }) {
                 placeholder="Enter your password"
                 value={password}
                 onChange={(e) =>
-                  setPassword(
-                    e.target.value
-                  )
+                  setPassword(e.target.value)
                 }
                 autoComplete="current-password"
                 disabled={loading}
@@ -411,7 +368,6 @@ function Login({ onLogin, onSwitch }) {
             </div>
           </div>
 
-          {/* Forgot Password */}
           <div
             style={{
               textAlign: "right",
@@ -440,7 +396,6 @@ function Login({ onLogin, onSwitch }) {
             </button>
           </div>
 
-          {/* Submit */}
           <button
             type="submit"
             className="auth-submit"
@@ -450,15 +405,11 @@ function Login({ onLogin, onSwitch }) {
               <>
                 <span className="auth-spinner"></span>
 
-                <span>
-                  Signing in...
-                </span>
+                <span>Signing in...</span>
               </>
             ) : (
               <>
-                <span>
-                  Sign in
-                </span>
+                <span>Sign in</span>
 
                 <span className="auth-submit-arrow">
                   →
@@ -468,18 +419,12 @@ function Login({ onLogin, onSwitch }) {
           </button>
         </form>
 
-        {/* Divider */}
         <div className="auth-divider">
-          <span>
-            Secure workspace access
-          </span>
+          <span>Secure workspace access</span>
         </div>
 
-        {/* Register */}
         <div className="auth-register">
-          <span>
-            Don't have an account?
-          </span>
+          <span>Don't have an account?</span>
 
           <button
             type="button"
@@ -496,13 +441,12 @@ function Login({ onLogin, onSwitch }) {
           </button>
         </div>
 
-        {/* Footer */}
         <div className="auth-footer">
           <span>🔐</span>
 
           <span>
-            Your workspace is protected
-            with secure authentication.
+            Your workspace is protected with secure
+            authentication.
           </span>
         </div>
       </div>

@@ -1,58 +1,36 @@
 import { useState } from "react";
 import "./auth.css";
 
-function Register({
-  onRegister,
-  onSwitch,
-}) {
-  const [name, setName] =
-    useState("");
+const API_URL = "https://syncspace-8lew.onrender.com";
 
-  const [email, setEmail] =
-    useState("");
+function Register({ onRegister, onSwitch }) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-  const [password, setPassword] =
-    useState("");
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [error, setError] =
-    useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     setError("");
 
-    const cleanName =
-      name.trim();
+    const cleanName = name.trim();
+    const cleanEmail = email.trim();
 
-    const cleanEmail =
-      email.trim();
-
-    if (
-      !cleanName ||
-      !cleanEmail ||
-      !password
-    ) {
-      setError(
-        "Please fill in all fields."
-      );
+    if (!cleanName || !cleanEmail || !password) {
+      setError("Please fill in all fields.");
       return;
     }
 
     if (cleanName.length < 2) {
-      setError(
-        "Name must be at least 2 characters."
-      );
+      setError("Name must be at least 2 characters.");
       return;
     }
 
     if (password.length < 6) {
-      setError(
-        "Password must be at least 6 characters."
-      );
+      setError("Password must be at least 6 characters.");
       return;
     }
 
@@ -60,12 +38,11 @@ function Register({
       setLoading(true);
 
       const response = await fetch(
-        "https://syncspace-8lew.onrender.com/api/auth/register",
+        `${API_URL}/api/auth/register`,
         {
           method: "POST",
           headers: {
-            "Content-Type":
-              "application/json",
+            "Content-Type": "application/json",
           },
           body: JSON.stringify({
             name: cleanName,
@@ -75,16 +52,11 @@ function Register({
         }
       );
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
-      if (
-        !response.ok ||
-        !data.success
-      ) {
+      if (!response.ok || !data.success) {
         throw new Error(
-          data.message ||
-            "Registration failed."
+          data.message || "Registration failed."
         );
       }
 
@@ -141,6 +113,7 @@ function Register({
       </div>
 
       <div className="auth-card">
+
         {/* Logo */}
         <div className="auth-logo">
           <div className="auth-logo-icon">
@@ -181,6 +154,7 @@ function Register({
           onSubmit={handleSubmit}
           className="auth-form"
         >
+
           {/* Name */}
           <div className="auth-field">
             <label htmlFor="register-name">
@@ -198,9 +172,7 @@ function Register({
                 placeholder="Your name"
                 value={name}
                 onChange={(e) =>
-                  setName(
-                    e.target.value
-                  )
+                  setName(e.target.value)
                 }
                 autoComplete="name"
                 disabled={loading}
@@ -225,9 +197,7 @@ function Register({
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) =>
-                  setEmail(
-                    e.target.value
-                  )
+                  setEmail(e.target.value)
                 }
                 autoComplete="email"
                 disabled={loading}
@@ -252,9 +222,7 @@ function Register({
                 placeholder="At least 6 characters"
                 value={password}
                 onChange={(e) =>
-                  setPassword(
-                    e.target.value
-                  )
+                  setPassword(e.target.value)
                 }
                 autoComplete="new-password"
                 disabled={loading}
@@ -327,6 +295,7 @@ function Register({
             with secure authentication.
           </span>
         </div>
+
       </div>
     </div>
   );
