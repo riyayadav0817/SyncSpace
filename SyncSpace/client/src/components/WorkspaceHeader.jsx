@@ -2,73 +2,59 @@ function WorkspaceHeader({
   status,
   joinedRoom,
   participants,
+  onLeave,
 }) {
+  const isConnected = status?.includes("Connected");
+
   return (
-    <header
-      style={{
-        height: "70px",
-        background: "#0f172a",
-        borderBottom: "1px solid #1e293b",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "0 24px",
-        boxSizing: "border-box",
-      }}
-    >
-      {/* LEFT SIDE */}
+    <header className="workspace-header">
+      {/* LEFT */}
+      <div className="workspace-header-left">
+        <div className="workspace-header-brand">
+          <div className="workspace-header-logo">
+            🎨
+          </div>
 
-      <div>
-        <div
-          style={{
-            fontSize: "18px",
-            fontWeight: "700",
-          }}
-        >
-          {joinedRoom
-            ? `Workspace ${joinedRoom}`
-            : "SyncSpace Workspace"}
-        </div>
+          <div>
+            <div className="workspace-header-title">
+              {joinedRoom
+                ? `Workspace ${joinedRoom}`
+                : "SyncSpace Workspace"}
+            </div>
 
-        <div
-          style={{
-            fontSize: "12px",
-            color: status.includes("Connected")
-              ? "#22c55e"
-              : "#facc15",
-            marginTop: "4px",
-          }}
-        >
-          ● {status}
+            <div
+              className={`workspace-header-status ${
+                isConnected
+                  ? "workspace-status-connected"
+                  : "workspace-status-warning"
+              }`}
+            >
+              <span className="workspace-status-dot">
+                ●
+              </span>
+
+              {status || "Disconnected"}
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* RIGHT SIDE */}
+      {/* RIGHT */}
+      <div className="workspace-header-right">
+        <div className="workspace-online">
+          <span className="workspace-online-icon">
+            👥
+          </span>
 
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "15px",
-        }}
-      >
-        <div
-          style={{
-            color: "#94a3b8",
-          }}
-        >
-          👥 {participants.length} online
+          <span>
+            {participants?.length || 0} online
+          </span>
         </div>
 
         <button
-          style={{
-            padding: "8px 14px",
-            borderRadius: "7px",
-            border: "1px solid #334155",
-            background: "#1e293b",
-            color: "#e2e8f0",
-            cursor: "pointer",
-          }}
+          type="button"
+          className="workspace-header-leave"
+          onClick={onLeave}
         >
           Leave
         </button>

@@ -1,3 +1,4 @@
+
 import {
   useCallback,
   useEffect,
@@ -17,7 +18,6 @@ function Whiteboard({
   setColor,
   brushSize,
   setBrushSize,
-  socket,
   setHistory,
   redoStack,
   setRedoStack,
@@ -30,21 +30,19 @@ function Whiteboard({
   const yRedoRef = useRef(null);
 
   const drawingRef = useRef(false);
-  const currentLineRef = useRef(null);
+  const currentObjectRef = useRef(null);
 
   const [tool, setTool] = useState("pen");
   const [yjsConnected, setYjsConnected] = useState(false);
 
   const CANVAS_HEIGHT = 600;
 
-  // =====================================================
-  // READ YJS LINES
-  // =====================================================
+  /* =====================================================
+     YJS READ HELPERS
+  ===================================================== */
 
-  const readLinesFromYjs = useCallback((yArray) => {
-    if (!yArray) {
-      return [];
-    }
+  const readArray = useCallback((yArray) => {
+    if (!yArray) return [];
 
     return yArray
       .toArray()
@@ -58,177 +56,324 @@ function Whiteboard({
       .filter(Boolean);
   }, []);
 
-  // =====================================================
-  // READ REDO
-  // =====================================================
+  /* =====================================================
+     DRAW OBJECT
+  ===================================================== */
 
-  const readRedoFromYjs = useCallback((yArray) => {
-    if (!yArray) {
-      return [];
-    }
-
-    return yArray
-      .toArray()
-      .map((value) => {
-        try {
-          return JSON.parse(value);
-        } catch {
-          return null;
-        }
-      })
-      .filter(Boolean);
-  }, []);
-
-  // =====================================================
-  // DRAW SINGLE LINE
-  // =====================================================
-
-  const drawLine = useCallback((ctx, line) => {
-    if (
-      !line ||
-      !Array.isArray(line.points) ||
-      line.points.length === 0
-    ) {
+  const drawObject = useCallback((ctx, object) => {
+    if (!object || !Array.isArray(object.points)) {
       return;
     }
 
-    const points = line.points;
+    const points = object.points;
+
+    if (points.length < 2) {
+      return;
+    }
+
+    const type = object.type || "pen";
+
+    const stroke =
+      object.color || "#2563eb";
+
+    const width =
+      Number(object.brushSize) || 4;
 
     ctx.save();
 
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
 
-    if (line.tool === "eraser") {
-      ctx.globalCompositeOperation = "destination-out";
-      ctx.strokeStyle = "rgba(0,0,0,1)";
+    /* =================================================
+       ERASER
+    ================================================= */
+
+    if (type === "eraser") {
+      ctx.globalCompositeOperation =
+        "destination-out";
     } else {
-      ctx.globalCompositeOperation = "source-over";
-      ctx.strokeStyle = line.color || "#2563eb";
+      ctx.globalCompositeOperation =
+        "source-over";
     }
 
-    ctx.lineWidth = Number(line.brushSize) || 4;
+    ctx.strokeStyle = stroke;
+    ctx.fillStyle = stroke;
+    ctx.lineWidth =
+      type === "eraser"
+        ? Math.max(width, 12)
+        : width;
 
-    ctx.beginPath();
+    /* =================================================
+       PEN / ERASER
+    ================================================= */
 
-    const first = points[0];
+    if (
+      type === "pen" ||
+      type === "eraser"
+    ) {
+      ctx.beginPath();
 
-    ctx.moveTo(
-      Number(first.x) || 0,
-      Number(first.y) || 0,
-    );
+      const first = points[0];
 
-    // Single point -> make a dot
-    if (points.length === 1) {
-      ctx.arc(
+      ctx.moveTo(
         Number(first.x) || 0,
-        Number(first.y) || 0,
-        Math.max((Number(line.brushSize) || 4) / 2, 1),
-        0,
-        Math.PI * 2,
+        Number(first.y) || 0
       );
 
-      ctx.fillStyle =
-        line.tool === "eraser"
-          ? "rgba(0,0,0,1)"
-          : line.color || "#2563eb";
-
-      if (line.tool === "eraser") {
-        ctx.fill();
-      } else {
-        ctx.fillStyle = line.color || "#2563eb";
-        ctx.fill();
-      }
-    } else {
       for (let i = 1; i < points.length; i++) {
         ctx.lineTo(
           Number(points[i].x) || 0,
-          Number(points[i].y) || 0,
+          Number(points[i].y) || 0
         );
       }
 
       ctx.stroke();
+
+      ctx.restore();
+      return;
+    }
+
+    /* =================================================
+       ADVANCED SHAPES
+    ================================================= */
+
+    if (points.length < 2) {
+      ctx.restore();
+      return;
+    }
+
+    const start = points[0];
+    const end =
+      points[points.length - 1];
+
+    const x1 = Number(start.x) || 0;
+    const y1 = Number(start.y) || 0;
+
+    const x2 = Number(end.x) || 0;
+    const y2 = Number(end.y) || 0;
+
+    /* =================================================
+       LINE
+    ================================================= */
+
+    if (type === "line") {
+      ctx.beginPath();
+
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+
+      ctx.stroke();
+
+      ctx.restore();
+      return;
+    }
+
+    /* =================================================
+       RECTANGLE
+    ================================================= */
+
+    if (type === "rectangle") {
+      ctx.strokeRect(
+        x1,
+        y1,
+        x2 - x1,
+        y2 - y1
+      );
+
+      ctx.restore();
+      return;
+    }
+
+    /* =================================================
+       CIRCLE
+    ================================================= */
+
+    if (type === "circle") {
+      const dx = x2 - x1;
+      const dy = y2 - y1;
+
+      const radius =
+        Math.sqrt(
+          dx * dx +
+          dy * dy
+        );
+
+      ctx.beginPath();
+
+      ctx.arc(
+        x1,
+        y1,
+        radius,
+        0,
+        Math.PI * 2
+      );
+
+      ctx.stroke();
+
+      ctx.restore();
+      return;
+    }
+
+    /* =================================================
+       ARROW
+    ================================================= */
+
+    if (type === "arrow") {
+      ctx.beginPath();
+
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+
+      ctx.stroke();
+
+      const angle =
+        Math.atan2(
+          y2 - y1,
+          x2 - x1
+        );
+
+      const arrowSize = 12;
+
+      ctx.beginPath();
+
+      ctx.moveTo(
+        x2,
+        y2
+      );
+
+      ctx.lineTo(
+        x2 -
+          arrowSize *
+            Math.cos(
+              angle - Math.PI / 6
+            ),
+        y2 -
+          arrowSize *
+            Math.sin(
+              angle - Math.PI / 6
+            )
+      );
+
+      ctx.moveTo(
+        x2,
+        y2
+      );
+
+      ctx.lineTo(
+        x2 -
+          arrowSize *
+            Math.cos(
+              angle + Math.PI / 6
+            ),
+        y2 -
+          arrowSize *
+            Math.sin(
+              angle + Math.PI / 6
+            )
+      );
+
+      ctx.stroke();
+
+      ctx.restore();
+      return;
     }
 
     ctx.restore();
   }, []);
 
-  // =====================================================
-  // CLEAR CANVAS
-  // =====================================================
+  /* =====================================================
+     CLEAR CANVAS
+  ===================================================== */
 
   const clearCanvas = useCallback(() => {
     const canvas = canvasRef.current;
 
-    if (!canvas) {
-      return;
-    }
+    if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx =
+      canvas.getContext("2d");
 
-    if (!ctx) {
-      return;
-    }
+    if (!ctx) return;
 
-    const width = canvas.clientWidth;
+    const width =
+      canvas.clientWidth;
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
 
     ctx.clearRect(
       0,
       0,
-      width,
-      CANVAS_HEIGHT,
+      canvas.width,
+      canvas.height
     );
 
-    ctx.save();
+    ctx.fillStyle = "#ffffff";
 
-    ctx.globalCompositeOperation = "source-over";
+    ctx.fillRect(
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    const dpr =
+      window.devicePixelRatio || 1;
+
+    ctx.setTransform(
+      dpr,
+      0,
+      0,
+      dpr,
+      0,
+      0
+    );
+
     ctx.fillStyle = "#ffffff";
 
     ctx.fillRect(
       0,
       0,
       width,
-      CANVAS_HEIGHT,
+      CANVAS_HEIGHT
     );
-
-    ctx.restore();
   }, []);
 
-  // =====================================================
-  // REDRAW
-  // =====================================================
+  /* =====================================================
+     REDRAW
+  ===================================================== */
 
   const redrawCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
+    const canvas =
+      canvasRef.current;
 
-    if (!canvas) {
-      return;
-    }
+    if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx =
+      canvas.getContext("2d");
 
-    if (!ctx) {
-      return;
-    }
+    if (!ctx) return;
 
     clearCanvas();
 
-    lines.forEach((line) => {
-      drawLine(ctx, line);
+    lines.forEach((object) => {
+      drawObject(ctx, object);
     });
   }, [
     lines,
-    drawLine,
+    drawObject,
     clearCanvas,
   ]);
 
-  // =====================================================
-  // RESIZE CANVAS
-  // =====================================================
+  /* =====================================================
+     RESIZE
+  ===================================================== */
 
   const resizeCanvas = useCallback(() => {
-    const canvas = canvasRef.current;
-    const container = containerRef.current;
+    const canvas =
+      canvasRef.current;
+
+    const container =
+      containerRef.current;
 
     if (!canvas || !container) {
       return;
@@ -237,10 +382,11 @@ function Whiteboard({
     const rect =
       container.getBoundingClientRect();
 
-    const width = Math.max(
-      Math.floor(rect.width),
-      300,
-    );
+    const width =
+      Math.max(
+        Math.floor(rect.width),
+        300
+      );
 
     const dpr =
       window.devicePixelRatio || 1;
@@ -249,7 +395,9 @@ function Whiteboard({
       Math.floor(width * dpr);
 
     canvas.height =
-      Math.floor(CANVAS_HEIGHT * dpr);
+      Math.floor(
+        CANVAS_HEIGHT * dpr
+      );
 
     canvas.style.width =
       `${width}px`;
@@ -260,9 +408,7 @@ function Whiteboard({
     const ctx =
       canvas.getContext("2d");
 
-    if (!ctx) {
-      return;
-    }
+    if (!ctx) return;
 
     ctx.setTransform(
       dpr,
@@ -270,75 +416,66 @@ function Whiteboard({
       0,
       dpr,
       0,
-      0,
+      0
     );
 
-    ctx.clearRect(
-      0,
-      0,
-      width,
-      CANVAS_HEIGHT,
-    );
-
-    ctx.save();
-
-    ctx.globalCompositeOperation =
-      "source-over";
-
-    ctx.fillStyle = "#ffffff";
+    ctx.fillStyle =
+      "#ffffff";
 
     ctx.fillRect(
       0,
       0,
       width,
-      CANVAS_HEIGHT,
+      CANVAS_HEIGHT
     );
 
-    ctx.restore();
-
-    lines.forEach((line) => {
-      drawLine(ctx, line);
+    lines.forEach((object) => {
+      drawObject(
+        ctx,
+        object
+      );
     });
   }, [
     lines,
-    drawLine,
+    drawObject,
   ]);
 
-  // =====================================================
-  // RESIZE LISTENER
-  // =====================================================
+  /* =====================================================
+     RESIZE LISTENER
+  ===================================================== */
 
   useEffect(() => {
     resizeCanvas();
 
-    const handleResize = () => {
-      resizeCanvas();
-    };
+    const handleResize =
+      () => {
+        resizeCanvas();
+      };
 
     window.addEventListener(
       "resize",
-      handleResize,
+      handleResize
     );
 
     return () => {
       window.removeEventListener(
         "resize",
-        handleResize,
+        handleResize
       );
     };
   }, [resizeCanvas]);
 
-  // =====================================================
-  // REDRAW WHEN LINES CHANGE
-  // =====================================================
+  /* =====================================================
+     REDRAW
+  ===================================================== */
 
   useEffect(() => {
     redrawCanvas();
   }, [redrawCanvas]);
 
-  // =====================================================
-  // CONNECT YJS
-  // =====================================================
+  /* =====================================================
+     YJS CONNECTION
+  ===================================================== */
 
   useEffect(() => {
     if (!joinedRoom) {
@@ -356,17 +493,13 @@ function Whiteboard({
     let room = null;
 
     try {
-      console.log(
-        "Connecting whiteboard to room:",
-        joinedRoom,
-      );
-
-      room = createRoomProvider(
-        joinedRoom,
-        {
-          name: "Whiteboard User",
-        },
-      );
+      room =
+        createRoomProvider(
+          joinedRoom,
+          {
+            name: "Whiteboard User",
+          }
+        );
 
       const {
         provider,
@@ -374,152 +507,109 @@ function Whiteboard({
         whiteboardRedo,
       } = room;
 
-      providerRef.current = provider;
-      yBoardRef.current = whiteboard;
-      yRedoRef.current = whiteboardRedo;
+      providerRef.current =
+        provider;
 
-      // ===================================================
-      // STATUS
-      // ===================================================
+      yBoardRef.current =
+        whiteboard;
 
-      const handleStatus = ({
-        status,
-      }) => {
-        console.log(
-          "Whiteboard Yjs status:",
-          status,
-        );
+      yRedoRef.current =
+        whiteboardRedo;
 
-        setYjsConnected(
-          status === "connected",
-        );
-      };
+      const handleStatus =
+        ({ status }) => {
+          setYjsConnected(
+            status === "connected"
+          );
+        };
+
+      const handleSync =
+        (isSynced) => {
+          if (!isSynced) return;
+
+          setLines(
+            readArray(
+              whiteboard
+            )
+          );
+
+          setRedoStack(
+            readArray(
+              whiteboardRedo
+            )
+          );
+
+          setYjsConnected(true);
+        };
+
+      const handleBoardChange =
+        () => {
+          setLines(
+            readArray(
+              whiteboard
+            )
+          );
+        };
+
+      const handleRedoChange =
+        () => {
+          setRedoStack(
+            readArray(
+              whiteboardRedo
+            )
+          );
+        };
 
       provider.on(
         "status",
-        handleStatus,
+        handleStatus
       );
-
-      // ===================================================
-      // SYNC
-      // ===================================================
-
-      const handleSync = (
-        isSynced,
-      ) => {
-        console.log(
-          "Whiteboard Yjs sync:",
-          isSynced,
-        );
-
-        if (isSynced) {
-          const syncedLines =
-            readLinesFromYjs(
-              whiteboard,
-            );
-
-          const syncedRedo =
-            readRedoFromYjs(
-              whiteboardRedo,
-            );
-
-          setLines(syncedLines);
-          setRedoStack(syncedRedo);
-
-          setYjsConnected(true);
-        }
-      };
 
       provider.on(
         "sync",
-        handleSync,
+        handleSync
       );
-
-      // ===================================================
-      // INITIAL DATA
-      // ===================================================
-
-      const initialLines =
-        readLinesFromYjs(
-          whiteboard,
-        );
-
-      const initialRedo =
-        readRedoFromYjs(
-          whiteboardRedo,
-        );
-
-      setLines(initialLines);
-      setRedoStack(initialRedo);
-
-      // ===================================================
-      // BOARD CHANGE
-      // ===================================================
-
-      const handleBoardChange = () => {
-        const nextLines =
-          readLinesFromYjs(
-            whiteboard,
-          );
-
-        console.log(
-          "Whiteboard changed:",
-          nextLines.length,
-        );
-
-        setLines(nextLines);
-      };
 
       whiteboard.observe(
-        handleBoardChange,
+        handleBoardChange
       );
-
-      // ===================================================
-      // REDO CHANGE
-      // ===================================================
-
-      const handleRedoChange = () => {
-        const nextRedo =
-          readRedoFromYjs(
-            whiteboardRedo,
-          );
-
-        setRedoStack(nextRedo);
-      };
 
       whiteboardRedo.observe(
-        handleRedoChange,
+        handleRedoChange
       );
 
-      // ===================================================
-      // CLEANUP
-      // ===================================================
+      setLines(
+        readArray(
+          whiteboard
+        )
+      );
+
+      setRedoStack(
+        readArray(
+          whiteboardRedo
+        )
+      );
 
       return () => {
-        console.log(
-          "Disconnecting whiteboard",
-        );
-
         provider.off(
           "status",
-          handleStatus,
+          handleStatus
         );
 
         provider.off(
           "sync",
-          handleSync,
+          handleSync
         );
 
         whiteboard.unobserve(
-          handleBoardChange,
+          handleBoardChange
         );
 
         whiteboardRedo.unobserve(
-          handleRedoChange,
+          handleRedoChange
         );
 
         provider.destroy();
-
         room.doc.destroy();
 
         providerRef.current = null;
@@ -530,8 +620,8 @@ function Whiteboard({
       };
     } catch (error) {
       console.error(
-        "Whiteboard Yjs connection failed:",
-        error,
+        "Yjs connection failed:",
+        error
       );
 
       setYjsConnected(false);
@@ -540,429 +630,469 @@ function Whiteboard({
     joinedRoom,
     setLines,
     setRedoStack,
-    readLinesFromYjs,
-    readRedoFromYjs,
+    readArray,
   ]);
 
-  // =====================================================
-  // GET POINTER POINT
-  // =====================================================
+  /* =====================================================
+     POINTER POSITION
+  ===================================================== */
 
-  const getPoint = useCallback(
-    (event) => {
-      const canvas =
-        canvasRef.current;
+  const getPoint =
+    useCallback(
+      (event) => {
+        const canvas =
+          canvasRef.current;
 
-      if (!canvas) {
-        return {
-          x: 0,
-          y: 0,
-        };
-      }
-
-      const rect =
-        canvas.getBoundingClientRect();
-
-      return {
-        x:
-          event.clientX -
-          rect.left,
-
-        y:
-          event.clientY -
-          rect.top,
-      };
-    },
-    [],
-  );
-
-  // =====================================================
-  // START DRAWING
-  // =====================================================
-
-  const startDrawing = useCallback(
-    (event) => {
-      if (!joinedRoom) {
-        return;
-      }
-
-      const yBoard =
-        yBoardRef.current;
-
-      if (!yBoard) {
-        console.warn(
-          "Whiteboard not connected to Yjs",
-        );
-
-        return;
-      }
-
-      if (
-        event.pointerType ===
-          "mouse" &&
-        event.button !== 0
-      ) {
-        return;
-      }
-
-      const canvas =
-        canvasRef.current;
-
-      if (!canvas) {
-        return;
-      }
-
-      event.preventDefault();
-
-      canvas.setPointerCapture?.(
-        event.pointerId,
-      );
-
-      const point =
-        getPoint(event);
-
-      const safeBrushSize =
-        Number(brushSize) || 4;
-
-      const newLine = {
-        id:
-          crypto.randomUUID?.() ||
-          `${Date.now()}-${Math.random()}`,
-
-        type: tool,
-
-        tool,
-
-        points: [point],
-
-        color:
-          tool === "eraser"
-            ? "#ffffff"
-            : color,
-
-        brushSize:
-          tool === "eraser"
-            ? Math.max(
-                safeBrushSize * 3,
-                12,
-              )
-            : safeBrushSize,
-      };
-
-      drawingRef.current = true;
-
-      currentLineRef.current =
-        newLine;
-
-      // Immediate local preview
-      setLines((previous) => [
-        ...previous,
-        newLine,
-      ]);
-
-      // Draw first point immediately
-      const ctx =
-        canvas.getContext("2d");
-
-      if (ctx) {
-        drawLine(
-          ctx,
-          newLine,
-        );
-      }
-    },
-    [
-      joinedRoom,
-      brushSize,
-      tool,
-      color,
-      getPoint,
-      setLines,
-      drawLine,
-    ],
-  );
-
-  // =====================================================
-  // DRAW
-  // =====================================================
-
-  const draw = useCallback(
-    (event) => {
-      if (!drawingRef.current) {
-        return;
-      }
-
-      const current =
-        currentLineRef.current;
-
-      if (!current) {
-        return;
-      }
-
-      event.preventDefault();
-
-      const point =
-        getPoint(event);
-
-      current.points.push(point);
-
-      // Update local preview
-      setLines((previous) => {
-        if (
-          previous.length === 0
-        ) {
-          return previous;
+        if (!canvas) {
+          return {
+            x: 0,
+            y: 0,
+          };
         }
 
-        const copy = [
-          ...previous,
-        ];
+        const rect =
+          canvas.getBoundingClientRect();
 
-        copy[
-          copy.length - 1
-        ] = {
-          ...current,
+        return {
+          x:
+            event.clientX -
+            rect.left,
+
+          y:
+            event.clientY -
+            rect.top,
+        };
+      },
+      []
+    );
+
+  /* =====================================================
+     START DRAWING
+  ===================================================== */
+
+  const startDrawing =
+    useCallback(
+      (event) => {
+        if (!joinedRoom) return;
+
+        const provider =
+          providerRef.current;
+
+        if (!provider) return;
+
+        if (
+          event.pointerType ===
+            "mouse" &&
+          event.button !== 0
+        ) {
+          return;
+        }
+
+        const canvas =
+          canvasRef.current;
+
+        if (!canvas) return;
+
+        event.preventDefault();
+
+        canvas.setPointerCapture?.(
+          event.pointerId
+        );
+
+        const point =
+          getPoint(event);
+
+        const safeSize =
+          Number(
+            brushSize
+          ) || 4;
+
+        const actualSize =
+          tool === "eraser"
+            ? Math.max(
+                safeSize * 3,
+                12
+              )
+            : safeSize;
+
+        const object = {
+          id:
+            crypto.randomUUID?.() ||
+            `${Date.now()}-${Math.random()}`,
+
+          type: tool,
+
+          tool,
+
           points: [
-            ...current.points,
+            point,
           ],
+
+          color:
+            tool === "eraser"
+              ? "#ffffff"
+              : color,
+
+          brushSize:
+            actualSize,
         };
 
-        return copy;
-      });
-    },
-    [
-      getPoint,
-      setLines,
-    ],
-  );
+        drawingRef.current =
+          true;
 
-  // =====================================================
-  // STOP DRAWING
-  // =====================================================
+        currentObjectRef.current =
+          object;
 
-  const stopDrawing = useCallback(
-    (event) => {
-      if (!drawingRef.current) {
-        return;
-      }
+        setLines(
+          (previous) => [
+            ...previous,
+            object,
+          ]
+        );
 
-      drawingRef.current = false;
+        const ctx =
+          canvas.getContext(
+            "2d"
+          );
 
-      event?.preventDefault();
+        if (ctx) {
+          drawObject(
+            ctx,
+            object
+          );
+        }
+      },
+      [
+        joinedRoom,
+        brushSize,
+        tool,
+        color,
+        getPoint,
+        setLines,
+        drawObject,
+      ]
+    );
 
-      const canvas =
-        canvasRef.current;
+  /* =====================================================
+     DRAW
+  ===================================================== */
 
-      canvas?.releasePointerCapture?.(
-        event?.pointerId,
-      );
+  const draw =
+    useCallback(
+      (event) => {
+        if (
+          !drawingRef.current
+        ) {
+          return;
+        }
 
-      const line =
-        currentLineRef.current;
+        const current =
+          currentObjectRef.current;
 
-      currentLineRef.current =
-        null;
+        if (!current) return;
 
-      if (
-        !line ||
-        !line.points ||
-        line.points.length === 0
-      ) {
-        return;
-      }
+        event.preventDefault();
 
-      const yBoard =
-        yBoardRef.current;
+        const point =
+          getPoint(event);
 
+        const type =
+          current.type;
+
+        let updatedObject;
+
+        if (
+          type === "pen" ||
+          type === "eraser"
+        ) {
+          updatedObject = {
+            ...current,
+
+            points: [
+              ...current.points,
+              point,
+            ],
+          };
+        } else {
+          updatedObject = {
+            ...current,
+
+            points: [
+              current.points[0],
+              point,
+            ],
+          };
+        }
+
+        currentObjectRef.current =
+          updatedObject;
+
+        setLines(
+          (previous) => {
+            if (
+              previous.length === 0
+            ) {
+              return previous;
+            }
+
+            const copy = [
+              ...previous,
+            ];
+
+            const index =
+              copy.length - 1;
+
+            if (
+              copy[index]?.id !==
+              current.id
+            ) {
+              return previous;
+            }
+
+            copy[index] =
+              updatedObject;
+
+            return copy;
+          }
+        );
+      },
+      [
+        getPoint,
+        setLines,
+      ]
+    );
+
+  /* =====================================================
+     STOP DRAWING
+  ===================================================== */
+
+  const stopDrawing =
+    useCallback(
+      (event) => {
+        if (
+          !drawingRef.current
+        ) {
+          return;
+        }
+
+        drawingRef.current =
+          false;
+
+        event?.preventDefault();
+
+        const canvas =
+          canvasRef.current;
+
+        canvas?.releasePointerCapture?.(
+          event?.pointerId
+        );
+
+        const object =
+          currentObjectRef.current;
+
+        currentObjectRef.current =
+          null;
+
+        if (!object) return;
+
+        const yBoard =
+          yBoardRef.current;
+
+        const provider =
+          providerRef.current;
+
+        if (
+          !yBoard ||
+          !provider
+        ) {
+          return;
+        }
+
+        if (
+          !Array.isArray(
+            object.points
+          )
+        ) {
+          return;
+        }
+
+        if (
+          object.points.length <
+          1
+        ) {
+          return;
+        }
+
+        provider.doc.transact(
+          () => {
+            yBoard.push([
+              JSON.stringify(
+                object
+              ),
+            ]);
+
+            const yRedo =
+              yRedoRef.current;
+
+            if (
+              yRedo &&
+              yRedo.length > 0
+            ) {
+              yRedo.delete(
+                0,
+                yRedo.length
+              );
+            }
+          }
+        );
+      },
+      []
+    );
+
+  /* =====================================================
+     UNDO
+  ===================================================== */
+
+  const undo =
+    useCallback(() => {
       const provider =
         providerRef.current;
 
-      if (!yBoard || !provider) {
+      const yBoard =
+        yBoardRef.current;
+
+      const yRedo =
+        yRedoRef.current;
+
+      if (
+        !provider ||
+        !yBoard ||
+        !yRedo ||
+        yBoard.length === 0
+      ) {
         return;
       }
 
-      console.log(
-        "Saving stroke to Yjs:",
-        line.id,
+      const last =
+        yBoard.get(
+          yBoard.length - 1
+        );
+
+      provider.doc.transact(
+        () => {
+          yBoard.delete(
+            yBoard.length - 1,
+            1
+          );
+
+          yRedo.push([
+            last,
+          ]);
+        }
       );
+    }, []);
 
-      // =================================================
-      // SAVE TO YJS
-      // =================================================
+  /* =====================================================
+     REDO
+  ===================================================== */
 
-      provider.doc.transact(() => {
-        yBoard.push([
-          JSON.stringify(line),
-        ]);
+  const redo =
+    useCallback(() => {
+      const provider =
+        providerRef.current;
 
-        // New drawing clears redo
-        const yRedo =
-          yRedoRef.current;
+      const yBoard =
+        yBoardRef.current;
 
-        if (
-          yRedo &&
-          yRedo.length > 0
-        ) {
+      const yRedo =
+        yRedoRef.current;
+
+      if (
+        !provider ||
+        !yBoard ||
+        !yRedo ||
+        yRedo.length === 0
+      ) {
+        return;
+      }
+
+      const last =
+        yRedo.get(
+          yRedo.length - 1
+        );
+
+      provider.doc.transact(
+        () => {
+          yRedo.delete(
+            yRedo.length - 1,
+            1
+          );
+
+          yBoard.push([
+            last,
+          ]);
+        }
+      );
+    }, []);
+
+  /* =====================================================
+     CLEAR
+  ===================================================== */
+
+  const clearBoard =
+    useCallback(() => {
+      const provider =
+        providerRef.current;
+
+      const yBoard =
+        yBoardRef.current;
+
+      const yRedo =
+        yRedoRef.current;
+
+      if (
+        !provider ||
+        !yBoard ||
+        !yRedo ||
+        yBoard.length === 0
+      ) {
+        return;
+      }
+
+      if (
+        !window.confirm(
+          "Clear entire whiteboard?"
+        )
+      ) {
+        return;
+      }
+
+      provider.doc.transact(
+        () => {
+          yBoard.delete(
+            0,
+            yBoard.length
+          );
+
           yRedo.delete(
             0,
-            yRedo.length,
+            yRedo.length
           );
         }
-      });
-    },
-    [],
-  );
-
-  // =====================================================
-  // POINTER LEAVE / CANCEL
-  // =====================================================
-
-  const cancelDrawing = useCallback(
-    (event) => {
-      if (!drawingRef.current) {
-        return;
-      }
-
-      stopDrawing(event);
-    },
-    [stopDrawing],
-  );
-
-  // =====================================================
-  // UNDO
-  // =====================================================
-
-  const undo = useCallback(() => {
-    const provider =
-      providerRef.current;
-
-    const yBoard =
-      yBoardRef.current;
-
-    const yRedo =
-      yRedoRef.current;
-
-    if (
-      !provider ||
-      !yBoard ||
-      !yRedo ||
-      yBoard.length === 0
-    ) {
-      return;
-    }
-
-    const last =
-      yBoard.get(
-        yBoard.length - 1,
       );
 
-    provider.doc.transact(() => {
-      yBoard.delete(
-        yBoard.length - 1,
-        1,
-      );
+      setLines([]);
+      setRedoStack([]);
+      setHistory?.([]);
+    }, [
+      setLines,
+      setRedoStack,
+      setHistory,
+    ]);
 
-      yRedo.push([
-        last,
-      ]);
-    });
-  }, []);
-
-  // =====================================================
-  // REDO
-  // =====================================================
-
-  const redo = useCallback(() => {
-    const provider =
-      providerRef.current;
-
-    const yBoard =
-      yBoardRef.current;
-
-    const yRedo =
-      yRedoRef.current;
-
-    if (
-      !provider ||
-      !yBoard ||
-      !yRedo ||
-      yRedo.length === 0
-    ) {
-      return;
-    }
-
-    const last =
-      yRedo.get(
-        yRedo.length - 1,
-      );
-
-    provider.doc.transact(() => {
-      yRedo.delete(
-        yRedo.length - 1,
-        1,
-      );
-
-      yBoard.push([
-        last,
-      ]);
-    });
-  }, []);
-
-  // =====================================================
-  // CLEAR
-  // =====================================================
-
-  const clearBoard = useCallback(() => {
-    const provider =
-      providerRef.current;
-
-    const yBoard =
-      yBoardRef.current;
-
-    const yRedo =
-      yRedoRef.current;
-
-    if (
-      !provider ||
-      !yBoard ||
-      !yRedo ||
-      yBoard.length === 0
-    ) {
-      return;
-    }
-
-    if (
-      !window.confirm(
-        "Clear entire whiteboard?",
-      )
-    ) {
-      return;
-    }
-
-    provider.doc.transact(() => {
-      yBoard.delete(
-        0,
-        yBoard.length,
-      );
-
-      yRedo.delete(
-        0,
-        yRedo.length,
-      );
-    });
-
-    setLines([]);
-    setRedoStack([]);
-    setHistory?.([]);
-  }, [
-    setLines,
-    setRedoStack,
-    setHistory,
-  ]);
-
-  // =====================================================
-  // TOOL BUTTON
-  // =====================================================
+  /* =====================================================
+     TOOL BUTTON
+  ===================================================== */
 
   const ToolButton = ({
     active,
@@ -974,26 +1104,59 @@ function Whiteboard({
       type="button"
       onClick={onClick}
       style={{
-        padding: "8px 12px",
-        border: active
-          ? "1px solid #60a5fa"
-          : "1px solid #334155",
-        borderRadius: "9px",
-        background: active
-          ? "#1d4ed8"
-          : "#1e293b",
-        color: "#f8fafc",
-        cursor: "pointer",
-        fontWeight: 600,
+        padding:
+          "8px 11px",
+
+        border:
+          active
+            ? "1px solid #60a5fa"
+            : "1px solid #334155",
+
+        borderRadius:
+          "8px",
+
+        background:
+          active
+            ? "#1d4ed8"
+            : "#1e293b",
+
+        color:
+          "#f8fafc",
+
+        cursor:
+          "pointer",
+
+        fontWeight:
+          600,
+
+        fontSize:
+          "13px",
       }}
     >
       {icon} {label}
     </button>
   );
 
-  // =====================================================
-  // UI
-  // =====================================================
+  /* =====================================================
+     TOOL NAME
+  ===================================================== */
+
+  const toolName =
+    tool === "rectangle"
+      ? "Rectangle"
+      : tool === "circle"
+      ? "Circle"
+      : tool === "line"
+      ? "Line"
+      : tool === "arrow"
+      ? "Arrow"
+      : tool === "eraser"
+      ? "Eraser"
+      : "Pen";
+
+  /* =====================================================
+     UI
+  ===================================================== */
 
   return (
     <div
@@ -1001,7 +1164,8 @@ function Whiteboard({
         width: "100%",
         marginTop: "18px",
         background: "#020617",
-        border: "1px solid #1e293b",
+        border:
+          "1px solid #1e293b",
         borderRadius: "18px",
         overflow: "hidden",
       }}
@@ -1010,13 +1174,27 @@ function Whiteboard({
 
       <div
         style={{
-          padding: "18px 20px",
+          padding:
+            "16px 20px",
+
           display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          background: "#111827",
-          color: "#f8fafc",
+
+          justifyContent:
+            "space-between",
+
+          alignItems:
+            "center",
+
+          background:
+            "#111827",
+
+          color:
+            "#f8fafc",
+
           gap: "12px",
+
+          flexWrap:
+            "wrap",
         }}
       >
         <div>
@@ -1030,7 +1208,8 @@ function Whiteboard({
 
           <small
             style={{
-              color: "#94a3b8",
+              color:
+                "#94a3b8",
             }}
           >
             Collaborative Whiteboard
@@ -1039,10 +1218,13 @@ function Whiteboard({
 
         <div
           style={{
-            color: yjsConnected
-              ? "#4ade80"
-              : "#f87171",
-            fontWeight: 600,
+            color:
+              yjsConnected
+                ? "#4ade80"
+                : "#f87171",
+
+            fontWeight:
+              600,
           }}
         >
           {yjsConnected
@@ -1055,16 +1237,26 @@ function Whiteboard({
 
       <div
         style={{
-          padding: "12px 16px",
+          padding:
+            "12px 16px",
+
           display: "flex",
-          gap: "8px",
+
+          gap: "7px",
+
           flexWrap: "wrap",
-          alignItems: "center",
-          background: "#0b1220",
+
+          alignItems:
+            "center",
+
+          background:
+            "#0b1220",
         }}
       >
         <ToolButton
-          active={tool === "pen"}
+          active={
+            tool === "pen"
+          }
           icon="✏️"
           label="Pen"
           onClick={() =>
@@ -1083,21 +1275,69 @@ function Whiteboard({
           }
         />
 
+        <ToolButton
+          active={
+            tool === "line"
+          }
+          icon="╱"
+          label="Line"
+          onClick={() =>
+            setTool("line")
+          }
+        />
+
+        <ToolButton
+          active={
+            tool === "rectangle"
+          }
+          icon="▭"
+          label="Rectangle"
+          onClick={() =>
+            setTool(
+              "rectangle"
+            )
+          }
+        />
+
+        <ToolButton
+          active={
+            tool === "circle"
+          }
+          icon="⭕"
+          label="Circle"
+          onClick={() =>
+            setTool("circle")
+          }
+        />
+
+        <ToolButton
+          active={
+            tool === "arrow"
+          }
+          icon="➡️"
+          label="Arrow"
+          onClick={() =>
+            setTool("arrow")
+          }
+        />
+
         <input
           type="color"
           value={color}
           disabled={
             tool === "eraser"
           }
-          onChange={(e) =>
+          onChange={(event) =>
             setColor(
-              e.target.value,
+              event.target.value
             )
           }
+          title="Choose color"
           style={{
             width: "42px",
             height: "34px",
-            cursor: "pointer",
+            cursor:
+              "pointer",
           }}
         />
 
@@ -1106,19 +1346,23 @@ function Whiteboard({
           min="1"
           max="24"
           value={brushSize}
-          onChange={(e) =>
+          onChange={(event) =>
             setBrushSize(
               Number(
-                e.target.value,
-              ),
+                event.target.value
+              )
             )
           }
         />
 
         <span
           style={{
-            color: "#cbd5e1",
-            minWidth: "45px",
+            color:
+              "#cbd5e1",
+            minWidth:
+              "40px",
+            fontSize:
+              "13px",
           }}
         >
           {brushSize}px
@@ -1127,6 +1371,8 @@ function Whiteboard({
         <div
           style={{
             flex: 1,
+            minWidth:
+              "10px",
           }}
         />
 
@@ -1137,6 +1383,12 @@ function Whiteboard({
             !yjsConnected ||
             lines.length === 0
           }
+          style={{
+            padding:
+              "8px 12px",
+            cursor:
+              "pointer",
+          }}
         >
           ↩ Undo
         </button>
@@ -1148,17 +1400,31 @@ function Whiteboard({
             !yjsConnected ||
             redoStack.length === 0
           }
+          style={{
+            padding:
+              "8px 12px",
+            cursor:
+              "pointer",
+          }}
         >
           ↪ Redo
         </button>
 
         <button
           type="button"
-          onClick={clearBoard}
+          onClick={
+            clearBoard
+          }
           disabled={
             !yjsConnected ||
             lines.length === 0
           }
+          style={{
+            padding:
+              "8px 12px",
+            cursor:
+              "pointer",
+          }}
         >
           🗑 Clear
         </button>
@@ -1168,46 +1434,74 @@ function Whiteboard({
 
       <div
         style={{
-          padding: "16px",
-          background: "#020617",
+          padding:
+            "16px",
+          background:
+            "#020617",
         }}
       >
         <div
-          ref={containerRef}
+          ref={
+            containerRef
+          }
           style={{
-            width: "100%",
-            height: `${CANVAS_HEIGHT}px`,
-            background: "#ffffff",
-            borderRadius: "12px",
-            overflow: "hidden",
-            position: "relative",
+            width:
+              "100%",
+
+            height:
+              `${CANVAS_HEIGHT}px`,
+
+            background:
+              "#ffffff",
+
+            borderRadius:
+              "12px",
+
+            overflow:
+              "hidden",
+
+            position:
+              "relative",
           }}
         >
           <canvas
-            ref={canvasRef}
+            ref={
+              canvasRef
+            }
             onPointerDown={
               startDrawing
             }
-            onPointerMove={draw}
+            onPointerMove={
+              draw
+            }
             onPointerUp={
               stopDrawing
             }
             onPointerCancel={
-              cancelDrawing
+              stopDrawing
             }
-            onPointerLeave={() => {
-              // Don't stop drawing here.
-              // Pointer capture handles it.
-            }}
             style={{
-              display: "block",
-              width: "100%",
-              height: `${CANVAS_HEIGHT}px`,
-              touchAction: "none",
-              userSelect: "none",
-              WebkitUserSelect: "none",
+              display:
+                "block",
+
+              width:
+                "100%",
+
+              height:
+                `${CANVAS_HEIGHT}px`,
+
+              touchAction:
+                "none",
+
+              userSelect:
+                "none",
+
+              WebkitUserSelect:
+                "none",
+
               cursor:
-                tool === "eraser"
+                tool ===
+                "eraser"
                   ? "cell"
                   : "crosshair",
             }}
@@ -1219,17 +1513,52 @@ function Whiteboard({
 
       <div
         style={{
-          padding: "10px 16px",
-          color: "#94a3b8",
-          fontSize: "12px",
+          display:
+            "flex",
+
+          justifyContent:
+            "space-between",
+
+          alignItems:
+            "center",
+
+          gap:
+            "12px",
+
+          padding:
+            "9px 16px",
+
+          color:
+            "#94a3b8",
+
+          fontSize:
+            "12px",
+
+          flexWrap:
+            "wrap",
         }}
       >
-        {joinedRoom
-          ? `🟢 Yjs live sync • ${lines.length} strokes`
-          : "🔴 Join a workspace first"}
+        <span>
+          Tool:{" "}
+          <strong
+            style={{
+              color:
+                "#cbd5e1",
+            }}
+          >
+            {toolName}
+          </strong>
+        </span>
+
+        <span>
+          {joinedRoom
+            ? `🟢 Yjs live sync • ${lines.length} objects`
+            : "🔴 Join a workspace first"}
+        </span>
       </div>
     </div>
   );
 }
 
 export default Whiteboard;
+

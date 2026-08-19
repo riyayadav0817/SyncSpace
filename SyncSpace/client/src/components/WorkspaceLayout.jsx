@@ -1,3 +1,4 @@
+
 import WorkspaceHeader from "./WorkspaceHeader";
 
 function WorkspaceLayout({
@@ -7,56 +8,32 @@ function WorkspaceLayout({
   sidebar,
   roomPanel,
   children,
+  onLeave,
 }) {
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "#0f172a",
-        color: "white",
-        fontFamily: "Arial, sans-serif",
-      }}
-    >
+    <div className="workspace-shell">
       <WorkspaceHeader
         status={status}
         joinedRoom={joinedRoom}
         participants={participants}
+        onLeave={onLeave}
       />
 
-      <div
-        style={{
-          display: "flex",
-          minHeight: "calc(100vh - 70px)",
-        }}
-      >
+      <div className="workspace-body">
         {/* SIDEBAR */}
-        <aside
-          style={{
-            width: "240px",
-            flexShrink: 0,
-            background: "#111827",
-            borderRight: "1px solid #1f2937",
-            padding: "20px",
-            boxSizing: "border-box",
-          }}
-        >
+        <aside className="workspace-sidebar">
           {sidebar}
         </aside>
 
-        {/* MAIN */}
-        <main
-          style={{
-            flex: 1,
-            padding: "24px",
-            overflow: "auto",
-            boxSizing: "border-box",
-          }}
-        >
+        {/* MAIN CONTENT */}
+        <main className="workspace-content">
           {/* ROOM PANEL */}
           {roomPanel}
 
-          {/* ACTIVE PAGE */}
-          {children}
+          {/* ACTIVE SECTION */}
+          <section className="workspace-section">
+            {children}
+          </section>
         </main>
       </div>
     </div>
@@ -64,3 +41,4 @@ function WorkspaceLayout({
 }
 
 export default WorkspaceLayout;
+

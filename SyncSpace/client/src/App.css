@@ -1,6 +1,7 @@
-/* =====================================================
-   GLOBAL
-===================================================== */
+/* =========================================================
+   SYNCSpace — APP
+   Clean stylesheet for current App.jsx
+========================================================= */
 
 * {
   box-sizing: border-box;
@@ -9,720 +10,10 @@
 html,
 body,
 #root {
-  margin: 0;
   width: 100%;
   min-height: 100%;
-}
-
-body {
-  font-family:
-    Inter,
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    sans-serif;
-
-  background: #020617;
-  color: #e2e8f0;
-}
-
-button,
-input {
-  font: inherit;
-}
-
-
-/* =====================================================
-   APP
-===================================================== */
-
-.syncspace-app {
-  min-height: 100vh;
-  width: 100%;
-  background: #020617;
-}
-
-
-/* =====================================================
-   WORKSPACE SHELL
-===================================================== */
-
-.workspace-shell {
-  min-height: 100vh;
-  width: 100%;
-  background: #020617;
-  color: #e2e8f0;
-}
-
-
-/* =====================================================
-   HEADER
-===================================================== */
-
-.workspace-header {
-  min-height: 70px;
-
-  display: flex;
-  align-items: center;
-  gap: 22px;
-
-  padding: 14px 24px;
-
-  background: #0f172a;
-
-  border-bottom: 1px solid #1e293b;
-}
-
-.workspace-header strong {
-  color: #ffffff;
-  font-size: 18px;
-  font-weight: 800;
-}
-
-.workspace-header-room {
-  color: #94a3b8;
-  font-size: 14px;
-}
-
-.workspace-header-status {
-  margin-left: auto;
-  color: #34d399;
-  font-size: 14px;
-  font-weight: 600;
-}
-
-.workspace-header-users {
-  color: #cbd5e1;
-  font-size: 14px;
-}
-
-
-/* =====================================================
-   BODY
-===================================================== */
-
-.workspace-body {
-  display: flex;
-  min-height: calc(100vh - 70px);
-}
-
-
-/* =====================================================
-   SIDEBAR
-===================================================== */
-
-.workspace-sidebar {
-  width: 230px;
-  flex-shrink: 0;
-
-  padding: 20px;
-
-  background:
-    linear-gradient(
-      180deg,
-      #0f172a,
-      #0b1120
-    );
-
-  border-right: 1px solid #1e293b;
-}
-
-
-/* =====================================================
-   BRAND
-===================================================== */
-
-.workspace-brand {
-  color: #ffffff;
-
-  font-size: 20px;
-  font-weight: 800;
-
-  margin-bottom: 18px;
-}
-
-
-/* =====================================================
-   ROOM NAME
-===================================================== */
-
-.workspace-room-name {
-  padding: 10px 12px;
-
-  margin-bottom: 24px;
-
-  border-radius: 9px;
-
-  background: #172033;
-
-  color: #60a5fa;
-
-  font-size: 14px;
-  font-weight: 600;
-
-  border: 1px solid #263449;
-}
-
-
-/* =====================================================
-   NAVIGATION LABEL
-===================================================== */
-
-.workspace-label {
-  margin-bottom: 10px;
-
-  color: #64748b;
-
-  font-size: 11px;
-  font-weight: 800;
-
-  text-transform: uppercase;
-
-  letter-spacing: 1px;
-}
-
-
-/* =====================================================
-   NAVIGATION BUTTON
-===================================================== */
-
-.workspace-nav-button {
-  width: 100%;
-
-  display: flex;
-  align-items: center;
-
-  gap: 10px;
-
-  padding: 12px 14px;
-
-  margin-bottom: 8px;
-
-  border: 1px solid transparent;
-
-  border-radius: 9px;
-
-  background: #1e293b;
-
-  color: #cbd5e1;
-
-  cursor: pointer;
-
-  text-align: left;
-
-  font-size: 14px;
-  font-weight: 600;
-
-  transition:
-    background 0.2s ease,
-    color 0.2s ease,
-    transform 0.2s ease,
-    border-color 0.2s ease;
-}
-
-.workspace-nav-button:hover {
-  background: #263449;
-
-  color: #ffffff;
-
-  transform: translateX(2px);
-}
-
-.workspace-nav-icon {
-  width: 22px;
-
-  display: inline-flex;
-
-  justify-content: center;
-
-  align-items: center;
-
-  font-size: 17px;
-}
-
-.workspace-nav-active {
-  background:
-    linear-gradient(
-      135deg,
-      #2563eb,
-      #4f46e5
-    ) !important;
-
-  color: #ffffff !important;
-
-  border-color:
-    rgba(96, 165, 250, 0.35);
-
-  box-shadow:
-    0 8px 22px
-    rgba(37, 99, 235, 0.25);
-}
-
-
-/* =====================================================
-   LEAVE WORKSPACE
-===================================================== */
-
-.leave-workspace-button {
-  width: 100%;
-
-  margin-top: 14px;
-
-  padding: 11px 14px;
-
-  border: 1px solid
-    rgba(248, 113, 113, 0.2);
-
-  border-radius: 9px;
-
-  background:
-    linear-gradient(
-      135deg,
-      #dc2626,
-      #991b1b
-    );
-
-  color: #ffffff;
-
-  cursor: pointer;
-
-  font-size: 14px;
-  font-weight: 700;
-
-  transition:
-    filter 0.2s ease,
-    transform 0.2s ease;
-}
-
-.leave-workspace-button:hover {
-  filter: brightness(1.1);
-
-  transform: translateY(-1px);
-}
-
-
-/* =====================================================
-   MAIN CONTENT
-===================================================== */
-
-.workspace-content {
-  flex: 1;
-
-  min-width: 0;
-
-  padding: 24px;
-
-  overflow-y: auto;
-}
-
-
-/* =====================================================
-   ROOM CONTAINER
-===================================================== */
-
-.workspace-room-container {
-  width: 100%;
-  margin-bottom: 20px;
-}
-
-
-/* =====================================================
-   ACTIVE SECTION
-===================================================== */
-
-.workspace-section {
-  width: 100%;
-  min-height: 400px;
-}
-
-
-/* =====================================================
-   EMPTY STATE
-===================================================== */
-
-.workspace-empty {
-  min-height: 400px;
-
-  display: flex;
-
-  flex-direction: column;
-
-  align-items: center;
-
-  justify-content: center;
-
-  text-align: center;
-
-  padding: 30px;
-
-  background: #0f172a;
-
-  border: 1px solid #1e293b;
-
-  border-radius: 14px;
-}
-
-.workspace-empty-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
-}
-
-.workspace-empty h2 {
-  margin: 0 0 8px;
-
-  color: #ffffff;
-
-  font-size: 24px;
-}
-
-.workspace-empty p {
-  max-width: 500px;
-
   margin: 0;
-
-  color: #94a3b8;
-
-  line-height: 1.6;
-}
-
-
-/* =====================================================
-   ROOM PANEL
-===================================================== */
-
-.room-panel {
-  width: 100%;
-
-  padding: 22px;
-
-  border-radius: 14px;
-
-  background:
-    linear-gradient(
-      145deg,
-      #1e293b,
-      #172033
-    );
-
-  border: 1px solid #334155;
-
-  box-shadow:
-    0 12px 30px
-    rgba(0, 0, 0, 0.2);
-}
-
-.room-panel h2 {
-  margin: 0;
-
-  color: #ffffff;
-
-  font-size: 21px;
-}
-
-.room-panel-header p {
-  margin: 6px 0 20px;
-
-  color: #94a3b8;
-
-  font-size: 13px;
-}
-
-
-/* =====================================================
-   ROOM FORM
-===================================================== */
-
-.room-field {
-  margin-bottom: 15px;
-}
-
-.room-field label {
-  display: block;
-
-  margin-bottom: 7px;
-
-  color: #cbd5e1;
-
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.room-field input {
-  width: 100%;
-
-  padding: 12px 13px;
-
-  border: 1px solid #475569;
-
-  border-radius: 9px;
-
-  outline: none;
-
-  background: #0f172a;
-
-  color: #ffffff;
-
-  font-size: 14px;
-
-  transition:
-    border-color 0.2s ease,
-    box-shadow 0.2s ease;
-}
-
-.room-field input::placeholder {
-  color: #64748b;
-}
-
-.room-field input:focus {
-  border-color: #3b82f6;
-
-  box-shadow:
-    0 0 0 3px
-    rgba(59, 130, 246, 0.12);
-}
-
-.room-field input:disabled {
-  opacity: 0.65;
-
-  cursor: not-allowed;
-}
-
-
-/* =====================================================
-   JOIN BUTTON
-===================================================== */
-
-.room-join-button {
-  width: 100%;
-
-  padding: 12px 18px;
-
-  border: none;
-
-  border-radius: 9px;
-
-  background:
-    linear-gradient(
-      135deg,
-      #2563eb,
-      #4f46e5
-    );
-
-  color: #ffffff;
-
-  font-size: 14px;
-  font-weight: 700;
-
-  cursor: pointer;
-
-  transition:
-    filter 0.2s ease,
-    transform 0.2s ease;
-}
-
-.room-join-button:hover {
-  filter: brightness(1.08);
-
-  transform: translateY(-1px);
-}
-
-.room-join-button:active {
-  transform: translateY(0);
-}
-
-
-/* =====================================================
-   JOINED ROOM
-===================================================== */
-
-.room-joined-box {
-  margin-top: 15px;
-
-  padding: 14px;
-
-  border-radius: 10px;
-
-  background: #064e3b;
-
-  border: 1px solid #047857;
-}
-
-.room-joined-status {
-  color: #34d399;
-
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.room-joined-id {
-  margin-top: 5px;
-
-  color: #ffffff;
-
-  font-size: 18px;
-  font-weight: 800;
-}
-
-.room-user {
-  margin-top: 5px;
-
-  color: #a7f3d0;
-
-  font-size: 13px;
-}
-
-
-/* =====================================================
-   DISCONNECT BANNER
-===================================================== */
-
-.disconnect-banner {
-  position: fixed;
-
-  top: 0;
-  left: 0;
-  right: 0;
-
-  z-index: 9999;
-}
-
-
-/* =====================================================
-   SCROLLBAR
-===================================================== */
-
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #020617;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #334155;
-
-  border-radius: 10px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #475569;
-}
-
-
-/* =====================================================
-   MOBILE
-===================================================== */
-
-@media (max-width: 800px) {
-
-  .workspace-body {
-    flex-direction: column;
-  }
-
-  .workspace-sidebar {
-    width: 100%;
-
-    padding: 14px;
-
-    border-right: none;
-
-    border-bottom: 1px solid #1e293b;
-  }
-
-  .workspace-nav-button {
-    width: calc(50% - 5px);
-
-    display: inline-flex;
-
-    margin-right: 5px;
-  }
-
-  .workspace-content {
-    padding: 14px;
-  }
-
-  .workspace-header {
-    min-height: auto;
-
-    padding: 15px;
-
-    flex-wrap: wrap;
-
-    gap: 10px;
-  }
-
-  .workspace-header-status {
-    margin-left: 0;
-  }
-
-  .workspace-header-users {
-    width: 100%;
-  }
-}
-
-
-/* =====================================================
-   SMALL MOBILE
-===================================================== */
-
-@media (max-width: 480px) {
-
-  .workspace-nav-button {
-    width: 100%;
-
-    margin-right: 0;
-  }
-
-  .workspace-sidebar {
-    padding: 12px;
-  }
-
-  .workspace-content {
-    padding: 10px;
-  }
-
-  .workspace-brand {
-    font-size: 18px;
-  }
-
-  .workspace-empty {
-    min-height: 300px;
-
-    padding: 20px;
-  }
-
-  .room-panel {
-    padding: 16px;
-  }
-}
-
-/* =========================================================
-   SYN CSPACE AUTH
-========================================================= */
-
-.auth-page {
-  min-height: 100vh;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-  overflow: hidden;
-  background:
-    radial-gradient(
-      circle at 15% 20%,
-      rgba(37, 99, 235, 0.16),
-      transparent 30%
-    ),
-    radial-gradient(
-      circle at 85% 80%,
-      rgba(124, 58, 237, 0.14),
-      transparent 30%
-    ),
-    #070b14;
+  padding: 0;
   font-family:
     Inter,
     ui-sans-serif,
@@ -733,263 +24,1524 @@ input {
     sans-serif;
 }
 
-.auth-background {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
+body {
+  background: #020617;
+  color: #e2e8f0;
 }
 
-.auth-glow {
-  position: absolute;
-  width: 420px;
-  height: 420px;
-  border-radius: 50%;
-  filter: blur(100px);
-  opacity: 0.18;
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }
 
-.glow-one {
-  top: -180px;
-  left: -120px;
-  background: #2563eb;
+button {
+  -webkit-tap-highlight-color: transparent;
 }
 
-.glow-two {
-  right: -160px;
-  bottom: -180px;
-  background: #7c3aed;
+
+/* =========================================================
+   APP ROOT
+========================================================= */
+
+.syncspace-app {
+  width: 100%;
+  min-height: 100vh;
+
+  background:
+    radial-gradient(
+      circle at 12% 8%,
+      rgba(37, 99, 235, 0.14),
+      transparent 30%
+    ),
+    radial-gradient(
+      circle at 88% 92%,
+      rgba(6, 182, 212, 0.09),
+      transparent 32%
+    ),
+    #020617;
 }
 
-.auth-card {
-  width: min(430px, calc(100% - 32px));
-  position: relative;
-  z-index: 2;
-  padding: 38px;
-  border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 24px;
-  background: rgba(15, 23, 42, 0.88);
-  backdrop-filter: blur(20px);
-  box-shadow:
-    0 30px 80px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+
+/* =========================================================
+   WORKSPACE SHELL
+========================================================= */
+
+.workspace-shell {
+  width: 100%;
+  min-height: 100vh;
+
+  display: flex;
+  flex-direction: column;
+
+  background: #020617;
 }
 
-.auth-logo {
+.workspace-body {
+  flex: 1;
+  min-height: 0;
+
+  display: flex;
+}
+
+
+/* =========================================================
+   WORKSPACE HEADER / TOPBAR
+   Used by WorkspaceLayout.jsx
+========================================================= */
+/* =========================================================
+   WORKSPACE TOP HEADER
+========================================================= */
+
+.workspace-shell > header {
+  width: 100%;
+  min-height: 68px;
+
   display: flex;
   align-items: center;
-  gap: 11px;
+  justify-content: space-between;
+  gap: 20px;
+
+  padding: 0 24px;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(15, 23, 42, 0.98),
+      rgba(8, 15, 30, 0.98)
+    );
+
+  border-bottom: 1px solid #1e293b;
+
+  box-shadow:
+    0 8px 30px rgba(0, 0, 0, 0.18);
+
   color: #f8fafc;
-  font-size: 20px;
-  font-weight: 700;
-  margin-bottom: 34px;
 }
 
-.auth-logo-icon {
+
+/* =========================================================
+   HEADER LEFT
+========================================================= */
+
+.workspace-header-left {
+  min-width: 0;
+
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+
+/* Brand / workspace icon */
+
+.workspace-header-icon {
   width: 38px;
   height: 38px;
-  border-radius: 11px;
+
+  flex-shrink: 0;
+
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(
-    135deg,
-    #2563eb,
-    #7c3aed
-  );
-  color: white;
+
+  border-radius: 11px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #2563eb,
+      #06b6d4
+    );
+
+  box-shadow:
+    0 8px 22px
+    rgba(37, 99, 235, 0.25);
+
   font-size: 18px;
-  font-weight: 800;
-  box-shadow: 0 8px 25px rgba(37, 99, 235, 0.35);
 }
 
-.auth-heading {
-  margin-bottom: 28px;
+
+/* Workspace title */
+
+.workspace-header-title {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+
+  min-width: 0;
 }
 
-.auth-heading h1 {
-  margin: 0 0 8px;
+.workspace-header-title strong {
   color: #f8fafc;
-  font-size: 30px;
-  letter-spacing: -0.7px;
-}
 
-.auth-heading p {
-  margin: 0;
-  color: #94a3b8;
   font-size: 14px;
-  line-height: 1.6;
+  font-weight: 800;
+
+  line-height: 1.2;
+
+  white-space: nowrap;
 }
 
-.auth-form {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+.workspace-header-title span {
+  margin-top: 3px;
+
+  color: #64748b;
+
+  font-size: 10px;
+  font-weight: 700;
+
+  letter-spacing: 0.7px;
+
+  text-transform: uppercase;
 }
 
-.auth-field {
+
+/* =========================================================
+   ROOM ID
+========================================================= */
+
+.workspace-header-room {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+
+  padding: 8px 12px;
+
+  border-radius: 9px;
+
+  background: rgba(37, 99, 235, 0.08);
+
+  border: 1px solid
+    rgba(96, 165, 250, 0.16);
+
+  color: #93c5fd;
+
+  font-size: 11px;
+  font-weight: 800;
+
+  letter-spacing: 0.5px;
+
+  white-space: nowrap;
+}
+
+.workspace-header-room::before {
+  content: "ROOM";
+  color: #64748b;
+
+  font-size: 8px;
+  font-weight: 800;
+
+  letter-spacing: 1px;
+}
+
+
+/* =========================================================
+   HEADER RIGHT
+========================================================= */
+
+.workspace-header-right {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+
+  gap: 10px;
+
+  flex-shrink: 0;
+}
+
+
+/* =========================================================
+   CONNECTION STATUS
+========================================================= */
+
+.workspace-header-status {
+  display: inline-flex;
+  align-items: center;
   gap: 8px;
+
+  min-height: 36px;
+
+  padding: 0 12px;
+
+  border-radius: 9px;
+
+  background: rgba(22, 101, 52, 0.10);
+
+  border: 1px solid
+    rgba(34, 197, 94, 0.16);
+
+  color: #86efac;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  white-space: nowrap;
 }
 
-.auth-field label {
+.workspace-header-status-dot {
+  width: 7px;
+  height: 7px;
+
+  flex-shrink: 0;
+
+  border-radius: 50%;
+
+  background: #22c55e;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(34, 197, 94, 0.10),
+    0 0 10px
+    rgba(34, 197, 94, 0.45);
+}
+
+
+/* =========================================================
+   ONLINE USERS
+========================================================= */
+
+.workspace-header-users {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+
+  min-height: 36px;
+
+  padding: 0 12px;
+
+  border-radius: 9px;
+
+  background: #0f172a;
+
+  border: 1px solid #1e293b;
+
+  color: #94a3b8;
+
+  font-size: 11px;
+  font-weight: 700;
+
+  white-space: nowrap;
+}
+
+.workspace-header-users-icon {
+  color: #60a5fa;
+  font-size: 14px;
+}
+
+.workspace-header-users strong {
+  color: #e2e8f0;
+}
+
+
+/* =========================================================
+   LEAVE BUTTON
+========================================================= */
+
+.workspace-header-leave {
+  min-height: 36px;
+
+  padding: 0 14px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+
+  border-radius: 9px;
+
+  border: 1px solid
+    rgba(239, 68, 68, 0.20);
+
+  background:
+    rgba(127, 29, 29, 0.12);
+
+  color: #fca5a5;
+
+  font-size: 11px;
+  font-weight: 800;
+
+  cursor: pointer;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
+}
+
+.workspace-header-leave:hover {
+  transform: translateY(-1px);
+
+  background:
+    rgba(127, 29, 29, 0.25);
+
+  border-color:
+    rgba(239, 68, 68, 0.38);
+
+  color: #fecaca;
+}
+
+
+/* =========================================================
+   HEADER GENERIC BUTTON FIX
+========================================================= */
+
+.workspace-shell > header button {
+  font-family: inherit;
+  outline: none;
+}
+
+.workspace-shell > header button:focus-visible {
+  box-shadow:
+    0 0 0 3px
+    rgba(59, 130, 246, 0.18);
+}
+
+
+/* =========================================================
+   RESPONSIVE HEADER
+========================================================= */
+
+@media (max-width: 850px) {
+  .workspace-shell > header {
+    padding: 0 16px;
+    gap: 12px;
+  }
+
+  .workspace-header-title span {
+    display: none;
+  }
+
+  .workspace-header-room {
+    padding: 7px 9px;
+  }
+
+  .workspace-header-status {
+    padding: 0 9px;
+  }
+
+  .workspace-header-users {
+    padding: 0 9px;
+  }
+
+  .workspace-header-leave {
+    padding: 0 10px;
+  }
+}
+
+
+@media (max-width: 650px) {
+  .workspace-shell > header {
+    min-height: auto;
+
+    flex-wrap: wrap;
+
+    padding: 12px 14px;
+  }
+
+  .workspace-header-left {
+    width: 100%;
+  }
+
+  .workspace-header-right {
+    width: 100%;
+
+    justify-content: flex-start;
+
+    overflow-x: auto;
+
+    padding-bottom: 2px;
+  }
+
+  .workspace-header-status,
+  .workspace-header-users,
+  .workspace-header-leave {
+    flex-shrink: 0;
+  }
+}
+
+
+@media (max-width: 450px) {
+  .workspace-header-room::before {
+    display: none;
+  }
+
+  .workspace-header-room {
+    max-width: 130px;
+
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .workspace-header-status {
+    font-size: 10px;
+  }
+
+  .workspace-header-users {
+    font-size: 10px;
+  }
+
+  .workspace-header-leave {
+    font-size: 10px;
+  }
+}
+
+/* =========================================================
+   SIDEBAR
+========================================================= */
+
+.workspace-sidebar {
+  width: 245px;
+  min-width: 245px;
+
+  min-height: 0;
+
+  display: flex;
+  flex-direction: column;
+
+  padding: 20px 14px;
+
+  background:
+    linear-gradient(
+      180deg,
+      #0f172a 0%,
+      #020617 100%
+    );
+
+  border-right: 1px solid #1e293b;
+
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.workspace-sidebar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.workspace-sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.workspace-sidebar::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 999px;
+}
+
+
+/* =========================================================
+   BRAND
+========================================================= */
+
+.workspace-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 5px 10px 22px;
+
+  color: #f8fafc;
+
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.workspace-brand-icon {
+  width: 38px;
+  height: 38px;
+
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 11px;
+
+  background:
+    linear-gradient(
+      135deg,
+      #2563eb,
+      #06b6d4
+    );
+
+  box-shadow:
+    0 8px 25px
+    rgba(37, 99, 235, 0.28);
+}
+
+
+/* =========================================================
+   CURRENT ROOM / DASHBOARD BUTTON
+========================================================= */
+
+.workspace-room-name {
+  width: 100%;
+
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  padding: 11px 12px;
+
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+
+  background: #111827;
+
   color: #cbd5e1;
-  font-size: 13px;
-  font-weight: 600;
+
+  cursor: pointer;
+
+  text-align: left;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
 }
 
-.auth-input-wrapper {
-  height: 50px;
+.workspace-room-name:hover {
+  background: #172033;
+  border-color: #334155;
+}
+
+.workspace-room-name:active {
+  transform: scale(0.99);
+}
+
+
+/* =========================================================
+   SIDEBAR LABEL
+========================================================= */
+
+.workspace-label {
+  margin: 23px 10px 8px;
+
+  color: #64748b;
+
+  font-size: 10px;
+  font-weight: 800;
+
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+}
+
+
+/* =========================================================
+   NAVIGATION
+========================================================= */
+
+.workspace-nav-button {
+  width: 100%;
+
   display: flex;
   align-items: center;
   gap: 11px;
-  padding: 0 15px;
-  border: 1px solid #263247;
-  border-radius: 12px;
-  background: #0b1220;
-  transition: 0.2s ease;
+
+  margin: 0 0 5px;
+  padding: 11px 12px;
+
+  border: 1px solid transparent;
+  border-radius: 10px;
+
+  background: transparent;
+
+  color: #94a3b8;
+
+  font-size: 13px;
+  font-weight: 600;
+
+  cursor: pointer;
+
+  text-align: left;
+
+  transition:
+    color 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
 }
 
-.auth-input-wrapper:focus-within {
-  border-color: #3b82f6;
+.workspace-nav-button:hover {
+  color: #e2e8f0;
+  background: #111827;
+}
+
+.workspace-nav-button:active {
+  transform: scale(0.99);
+}
+
+.workspace-nav-active {
+  color: #ffffff;
+
+  background:
+    linear-gradient(
+      90deg,
+      rgba(37, 99, 235, 0.22),
+      rgba(6, 182, 212, 0.08)
+    );
+
+  border-color:
+    rgba(96, 165, 250, 0.18);
+
   box-shadow:
-    0 0 0 3px rgba(59, 130, 246, 0.12);
+    inset 3px 0 0 #3b82f6;
 }
 
-.auth-input-wrapper span {
-  color: #64748b;
+.workspace-nav-icon {
+  width: 24px;
+  min-width: 24px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  text-align: center;
   font-size: 15px;
 }
 
-.auth-input-wrapper input {
+
+/* =========================================================
+   SIDEBAR ACTION BUTTONS
+========================================================= */
+
+.leave-workspace-button,
+.logout-workspace-button {
   width: 100%;
-  height: 100%;
-  border: none;
-  outline: none;
-  background: transparent;
-  color: #f8fafc;
-  font-size: 14px;
+  min-height: 42px;
+
+  border-radius: 10px;
+
+  cursor: pointer;
+
+  font-size: 12px;
+  font-weight: 700;
+
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
 }
 
-.auth-input-wrapper input::placeholder {
+.leave-workspace-button {
+  margin-top: auto;
+
+  border: 1px solid
+    rgba(239, 68, 68, 0.18);
+
+  background:
+    rgba(127, 29, 29, 0.12);
+
+  color: #fca5a5;
+}
+
+.leave-workspace-button:hover {
+  background:
+    rgba(127, 29, 29, 0.28);
+
+  border-color:
+    rgba(239, 68, 68, 0.35);
+
+  color: #fecaca;
+}
+
+.logout-workspace-button {
+  margin-top: 9px;
+
+  border: 1px solid #1e293b;
+
+  background: #0f172a;
+
+  color: #94a3b8;
+}
+
+.logout-workspace-button:hover {
+  background: #172033;
+  color: #e2e8f0;
+}
+
+.leave-workspace-button:active,
+.logout-workspace-button:active {
+  transform: scale(0.98);
+}
+
+
+/* =========================================================
+   MAIN CONTENT
+========================================================= */
+
+.workspace-content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+
+  padding: 30px;
+
+  overflow-x: hidden;
+  overflow-y: auto;
+
+  background:
+    radial-gradient(
+      circle at 50% 0%,
+      rgba(30, 64, 175, 0.10),
+      transparent 38%
+    ),
+    #020617;
+}
+
+.workspace-content::-webkit-scrollbar {
+  width: 7px;
+}
+
+.workspace-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.workspace-content::-webkit-scrollbar-thumb {
+  background: #1e293b;
+  border-radius: 999px;
+}
+
+.workspace-section {
+  width: 100%;
+}
+
+
+/* =========================================================
+   ROOM DASHBOARD
+========================================================= */
+
+.room-dashboard {
+  width: 100%;
+  max-width: 1100px;
+
+  margin: 0 auto;
+
+  padding: 8px 4px 40px;
+}
+
+
+/* =========================================================
+   DASHBOARD HEADER
+========================================================= */
+
+.room-dashboard-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+
+  gap: 30px;
+  margin-bottom: 28px;
+}
+
+.room-dashboard-badge {
+  display: inline-flex;
+  align-items: center;
+
+  padding: 7px 11px;
+  margin-bottom: 12px;
+
+  border-radius: 999px;
+
+  background:
+    rgba(37, 99, 235, 0.10);
+
+  border: 1px solid
+    rgba(96, 165, 250, 0.15);
+
+  color: #60a5fa;
+
+  font-size: 10px;
+  font-weight: 800;
+
+  letter-spacing: 1.1px;
+}
+
+.room-dashboard-header h1 {
+  margin: 0;
+
+  color: #f8fafc;
+
+  font-size: clamp(30px, 4vw, 44px);
+  line-height: 1.05;
+
+  letter-spacing: -1.5px;
+
+  overflow-wrap: anywhere;
+}
+
+.room-dashboard-header p {
+  max-width: 650px;
+
+  margin: 12px 0 0;
+
+  color: #64748b;
+
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+
+/* =========================================================
+   DASHBOARD GRID
+========================================================= */
+
+.room-dashboard-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(2, minmax(0, 1fr));
+
+  gap: 18px;
+
+  margin-bottom: 18px;
+}
+
+
+/* =========================================================
+   DASHBOARD CARD
+========================================================= */
+
+.room-dashboard-card {
+  min-height: 250px;
+
+  padding: 27px;
+
+  border-radius: 18px;
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(15, 23, 42, 0.96),
+      rgba(8, 15, 30, 0.96)
+    );
+
+  border: 1px solid #1e293b;
+
+  box-shadow:
+    0 20px 50px
+    rgba(0, 0, 0, 0.18);
+
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.room-dashboard-card:hover {
+  transform: translateY(-3px);
+
+  border-color:
+    rgba(96, 165, 250, 0.25);
+
+  box-shadow:
+    0 25px 60px
+    rgba(0, 0, 0, 0.25);
+}
+
+.create-room-card {
+  border-color:
+    rgba(37, 99, 235, 0.18);
+
+  background:
+    linear-gradient(
+      145deg,
+      rgba(15, 35, 75, 0.95),
+      rgba(8, 15, 30, 0.96)
+    );
+}
+
+
+/* =========================================================
+   CARD ICON
+========================================================= */
+
+.dashboard-card-icon {
+  width: 52px;
+  height: 52px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-bottom: 19px;
+
+  border-radius: 14px;
+
+  background:
+    rgba(37, 99, 235, 0.12);
+
+  border: 1px solid
+    rgba(96, 165, 250, 0.12);
+
+  font-size: 24px;
+}
+
+
+/* =========================================================
+   CARD TYPOGRAPHY
+========================================================= */
+
+.room-dashboard-card h2 {
+  margin: 0 0 8px;
+
+  color: #f1f5f9;
+
+  font-size: 18px;
+  font-weight: 750;
+}
+
+.room-dashboard-card p {
+  margin: 0 0 20px;
+
+  color: #64748b;
+
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+
+/* =========================================================
+   ROOM INPUT
+========================================================= */
+
+.room-dashboard-card input {
+  width: 100%;
+  height: 47px;
+
+  margin-bottom: 11px;
+  padding: 0 14px;
+
+  border: 1px solid #334155;
+  border-radius: 10px;
+
+  outline: none;
+
+  background: #020617;
+  color: #f8fafc;
+
+  font-size: 13px;
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.room-dashboard-card input::placeholder {
   color: #475569;
 }
 
-.auth-submit {
-  height: 52px;
-  margin-top: 4px;
-  border: none;
-  border-radius: 12px;
-  background: linear-gradient(
-    135deg,
-    #2563eb,
-    #4f46e5
-  );
-  color: white;
-  font-size: 14px;
-  font-weight: 700;
+.room-dashboard-card input:hover {
+  border-color: #475569;
+}
+
+.room-dashboard-card input:focus {
+  border-color: #3b82f6;
+
+  background: #030a18;
+
+  box-shadow:
+    0 0 0 3px
+    rgba(59, 130, 246, 0.10);
+}
+
+
+/* =========================================================
+   DASHBOARD BUTTONS
+========================================================= */
+
+.dashboard-primary-button,
+.dashboard-secondary-button {
+  min-height: 46px;
+
+  padding: 0 18px;
+
+  border-radius: 10px;
+
+  font-size: 12px;
+  font-weight: 800;
+
   cursor: pointer;
+
+  transition:
+    transform 0.2s ease,
+    filter 0.2s ease,
+    background 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.dashboard-primary-button {
+  border: none;
+
+  color: #ffffff;
+
+  background:
+    linear-gradient(
+      135deg,
+      #2563eb,
+      #0891b2
+    );
+
+  box-shadow:
+    0 12px 30px
+    rgba(37, 99, 235, 0.22);
+}
+
+.dashboard-primary-button:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.08);
+
+  box-shadow:
+    0 15px 35px
+    rgba(37, 99, 235, 0.30);
+}
+
+.dashboard-primary-button:active,
+.dashboard-secondary-button:active {
+  transform: scale(0.98);
+}
+
+.dashboard-secondary-button {
+  width: 100%;
+
+  border: 1px solid #334155;
+
+  background: #111827;
+
+  color: #cbd5e1;
+}
+
+.dashboard-secondary-button:hover {
+  border-color: #475569;
+  background: #172033;
+  color: #ffffff;
+}
+
+
+/* =========================================================
+   ACTIVE ROOM
+========================================================= */
+
+.active-room-header {
+  align-items: center;
+}
+
+.active-room-header .dashboard-primary-button {
+  flex-shrink: 0;
+}
+
+.room-id-display {
+  width: 100%;
+  min-height: 70px;
+
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  box-shadow:
-    0 10px 25px rgba(37, 99, 235, 0.25);
-  transition: 0.2s ease;
+
+  margin-bottom: 14px;
+  padding: 10px;
+
+  border-radius: 12px;
+
+  background: #020617;
+
+  border: 1px solid #1e293b;
+
+  color: #60a5fa;
+
+  font-size: 24px;
+  font-weight: 900;
+
+  letter-spacing: 3px;
+
+  text-align: center;
+
+  overflow-wrap: anywhere;
 }
 
-.auth-submit:hover {
-  transform: translateY(-1px);
-  box-shadow:
-    0 14px 30px rgba(37, 99, 235, 0.35);
+
+/* =========================================================
+   USER CARD
+========================================================= */
+
+.dashboard-user-card {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+
+  padding: 16px 18px;
+  margin-bottom: 20px;
+
+  border-radius: 14px;
+
+  border: 1px solid #1e293b;
+
+  background:
+    rgba(15, 23, 42, 0.65);
 }
 
-.auth-submit:disabled {
-  opacity: 0.7;
-  cursor: not-allowed;
-  transform: none;
-}
+.dashboard-user-card > span {
+  width: 40px;
+  height: 40px;
 
-.auth-submit span {
+  flex-shrink: 0;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  border-radius: 11px;
+
+  background: #172033;
+
   font-size: 18px;
 }
 
-.auth-spinner {
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255,255,255,0.3);
-  border-top-color: white;
-  border-radius: 50%;
-  animation: auth-spin 0.7s linear infinite;
-}
+.dashboard-user-card small,
+.dashboard-stat-card small {
+  display: block;
 
-@keyframes auth-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
+  margin-bottom: 3px;
 
-.auth-divider {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin: 26px 0 20px;
   color: #64748b;
-  font-size: 11px;
+
+  font-size: 9px;
+  font-weight: 800;
+
+  letter-spacing: 1px;
 }
 
-.auth-divider::before,
-.auth-divider::after {
-  content: "";
-  height: 1px;
-  flex: 1;
-  background: #1e293b;
+.dashboard-user-card strong {
+  color: #e2e8f0;
+
+  font-size: 13px;
+
+  overflow-wrap: anywhere;
 }
 
-.auth-register {
+
+/* =========================================================
+   DASHBOARD STATS
+========================================================= */
+
+.dashboard-stats {
+  display: grid;
+
+  grid-template-columns:
+    repeat(3, minmax(0, 1fr));
+
+  gap: 13px;
+
+  margin-bottom: 16px;
+}
+
+.dashboard-stat-card {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  color: #94a3b8;
+  gap: 13px;
+
+  padding: 17px;
+
+  border-radius: 14px;
+
+  background:
+    rgba(15, 23, 42, 0.72);
+
+  border: 1px solid #1e293b;
+}
+
+.dashboard-stat-card > span {
+  flex-shrink: 0;
+
+  font-size: 20px;
+}
+
+.dashboard-stat-card strong {
+  color: #f8fafc;
+
+  font-size: 14px;
+
+  overflow-wrap: anywhere;
+}
+
+
+/* =========================================================
+   CONNECTION CARD
+========================================================= */
+
+.dashboard-connected-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+
+  padding: 17px 19px;
+
+  border-radius: 14px;
+
+  background:
+    rgba(22, 101, 52, 0.10);
+
+  border: 1px solid
+    rgba(34, 197, 94, 0.16);
+}
+
+.dashboard-connected-icon {
+  flex-shrink: 0;
+
+  font-size: 22px;
+}
+
+.dashboard-connected-card strong {
+  color: #bbf7d0;
+
   font-size: 13px;
 }
 
-.auth-register button {
-  border: none;
-  padding: 0;
-  background: transparent;
-  color: #60a5fa;
-  font-weight: 700;
-  cursor: pointer;
-}
+.dashboard-connected-card p {
+  margin: 3px 0 0;
 
-.auth-register button:hover {
-  color: #93c5fd;
-  text-decoration: underline;
-}
-
-.auth-footer {
-  margin-top: 24px;
-  padding-top: 18px;
-  border-top: 1px solid #1e293b;
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
   color: #64748b;
+
+  font-size: 11px;
+}
+
+
+/* =========================================================
+   OPTIONAL FEATURE CARDS
+========================================================= */
+
+.dashboard-feature-grid {
+  display: grid;
+
+  grid-template-columns:
+    repeat(4, minmax(0, 1fr));
+
+  gap: 12px;
+}
+
+.dashboard-feature-card {
+  padding: 18px;
+
+  border-radius: 14px;
+
+  border: 1px solid #172033;
+
+  background:
+    rgba(15, 23, 42, 0.48);
+}
+
+.dashboard-feature-card > span {
+  display: block;
+
+  margin-bottom: 12px;
+
+  font-size: 20px;
+}
+
+.dashboard-feature-card strong {
+  display: block;
+
+  color: #e2e8f0;
+
+  font-size: 12px;
+}
+
+.dashboard-feature-card p {
+  margin: 5px 0 0;
+
+  color: #64748b;
+
   font-size: 11px;
   line-height: 1.5;
-  text-align: center;
-  justify-content: center;
 }
+
+
+/* =========================================================
+   DISCONNECT / STATUS SUPPORT
+========================================================= */
+
+.workspace-status {
+  color: #94a3b8;
+}
+
+.workspace-status.connected {
+  color: #4ade80;
+}
+
+.workspace-status.disconnected {
+  color: #f87171;
+}
+
+
+/* =========================================================
+   RESPONSIVE — TABLET
+========================================================= */
+
+@media (max-width: 900px) {
+  .workspace-sidebar {
+    width: 215px;
+    min-width: 215px;
+  }
+
+  .workspace-content {
+    padding: 22px;
+  }
+
+  .dashboard-feature-grid {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+  }
+
+  .room-dashboard {
+    max-width: 100%;
+  }
+}
+
+
+/* =========================================================
+   RESPONSIVE — MOBILE
+========================================================= */
+
+@media (max-width: 700px) {
+  .workspace-body {
+    flex-direction: column;
+  }
+
+  .workspace-sidebar {
+    width: 100%;
+    min-width: 0;
+
+    max-height: none;
+
+    padding: 14px;
+
+    border-right: none;
+    border-bottom: 1px solid #1e293b;
+  }
+
+  .workspace-brand {
+    padding-bottom: 14px;
+  }
+
+  .workspace-label {
+    margin-top: 14px;
+  }
+
+  .workspace-nav-button {
+    display: inline-flex;
+
+    width: auto;
+
+    margin-right: 5px;
+    margin-bottom: 5px;
+  }
+
+  .leave-workspace-button {
+    margin-top: 10px;
+  }
+
+  .logout-workspace-button {
+    margin-top: 8px;
+  }
+
+  .workspace-content {
+    padding: 18px;
+  }
+
+  .room-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .room-dashboard-header {
+    flex-direction: column;
+    align-items: flex-start;
+
+    gap: 18px;
+  }
+
+  .active-room-header .dashboard-primary-button {
+    width: 100%;
+  }
+
+  .dashboard-stats {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* =========================================================
+   RESPONSIVE — SMALL MOBILE
+========================================================= */
 
 @media (max-width: 500px) {
-  .auth-card {
-    padding: 28px 22px;
-    border-radius: 20px;
+  .workspace-content {
+    padding: 14px;
   }
 
-  .auth-heading h1 {
-    font-size: 26px;
+  .room-dashboard {
+    padding: 5px 0 30px;
+  }
+
+  .room-dashboard-header h1 {
+    font-size: 30px;
+  }
+
+  .room-dashboard-card {
+    min-height: 0;
+
+    padding: 21px;
+  }
+
+  .room-id-display {
+    min-height: 60px;
+
+    font-size: 19px;
+    letter-spacing: 2px;
+  }
+
+  .dashboard-feature-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-connected-card {
+    align-items: flex-start;
   }
 }
+
+
+/* =========================================================
+   ACCESSIBILITY
+========================================================= */
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+
+

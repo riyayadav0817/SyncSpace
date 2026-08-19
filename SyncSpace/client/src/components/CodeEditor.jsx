@@ -15,6 +15,8 @@ import {
   subscribeToAwareness,
 } from "../collaboration/awareness";
 
+const API_URL = "http://localhost:5000";
+
 function CodeEditor({
   code,
   setCode,
@@ -23,32 +25,25 @@ function CodeEditor({
   joinedRoom,
   userName,
 }) {
-  const editorRef =
-    useRef(null);
+  const editorRef = useRef(null);
 
-  const providerRef =
-    useRef(null);
+  const providerRef = useRef(null);
+  const yCodeRef = useRef(null);
+  const ySettingsRef = useRef(null);
 
-  const yCodeRef =
-    useRef(null);
+  const suppressCodeChangeRef = useRef(false);
+  const suppressLanguageChangeRef = useRef(false);
+  const initializingRef = useRef(false);
 
-  const suppressChangeRef =
-    useRef(false);
+  const cursorDisposableRef = useRef(null);
 
-  const [copied, setCopied] =
-    useState(false);
+  const [copied, setCopied] = useState(false);
+  const [output, setOutput] = useState("");
+  const [isRunning, setIsRunning] = useState(false);
+  const [yjsConnected, setYjsConnected] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState([]);
 
-  const [output, setOutput] =
-    useState("");
-
-  const [isRunning, setIsRunning] =
-    useState(false);
-
-  const [yjsConnected, setYjsConnected] =
-    useState(false);
-
-  const [onlineUsers, setOnlineUsers] =
-    useState([]);
+  const [previewHtml, setPreviewHtml] = useState("");
 
   // =====================================================
   // CONNECT YJS
@@ -58,202 +53,266 @@ function CodeEditor({
     if (!joinedRoom) {
       providerRef.current = null;
       yCodeRef.current = null;
+      ySettingsRef.current = null;
 
       setYjsConnected(false);
       setOnlineUsers([]);
 
-      return;
+      return undefined;
     }
 
     let room = null;
     let unsubscribeAwareness = null;
 
     try {
-      room =
-        createRoomProvider(
-          joinedRoom,
-          {
-            name:
-              userName ||
-              "Anonymous",
-          },
-        );
+      console.log(
+        "💻 Connecting CodeEditor to room:",
+        joinedRoom
+      );
+
+      room = createRoomProvider(joinedRoom, {
+        name: userName?.trim() || "Anonymous",
+      });
 
       const {
         provider,
         code: yCode,
         awareness,
         setUserName,
-        setCursorState,
       } = room;
 
-      providerRef.current =
-        provider;
+      providerRef.current = provider;
+      yCodeRef.current = yCode;
 
-      yCodeRef.current =
-        yCode;
+      const ySettings =
+        room.doc.getMap("code-settings");
 
-      setUserName(userName);
+      ySettingsRef.current = ySettings;
+
+      setUserName(
+        userName?.trim() || "Anonymous"
+      );
 
       // ===================================================
       // STATUS
       // ===================================================
 
-      const handleStatus = ({
-        status,
-      }) => {
+      const handleStatus = ({ status }) => {
         console.log(
-          "Yjs status:",
-          status,
+          "🔌 Code Yjs status:",
+          status
         );
 
         setYjsConnected(
-          status ===
-            "connected",
+          status === "connected"
         );
       };
 
-      provider.on(
-        "status",
-        handleStatus,
-      );
+      provider.on("status", handleStatus);
 
       // ===================================================
-      // SYNC EVENT
+      // INITIAL SYNC
       // ===================================================
 
-      const handleSync = (
-        isSynced,
-      ) => {
-        console.log(
-          "Yjs synced:",
-          isSynced,
-        );
+      const syncSharedState = () => {
+        if (initializingRef.current) {
+          return;
+        }
 
-        if (isSynced) {
-          setYjsConnected(true);
+        initializingRef.current = true;
+
+        try {
+          const sharedCode =
+            yCode.toString();
+
+          let sharedLanguage =
+            ySettings.get("language");
+
+          if (
+            typeof sharedLanguage !==
+              "string" ||
+            !sharedLanguage
+          ) {
+            sharedLanguage =
+              language || "javascript";
+
+            ySettings.set(
+              "language",
+              sharedLanguage
+            );
+          }
+
+          if (sharedCode.length > 0) {
+            suppressCodeChangeRef.current =
+              true;
+
+            setCode(sharedCode);
+
+            if (editorRef.current) {
+              const currentValue =
+                editorRef.current.getValue();
+
+              if (
+                currentValue !==
+                sharedCode
+              ) {
+                editorRef.current.setValue(
+                  sharedCode
+                );
+              }
+            }
+
+            suppressCodeChangeRef.current =
+              false;
+          } else if (
+            typeof code === "string" &&
+            code.length > 0
+          ) {
+            yCode.doc.transact(() => {
+              yCode.insert(0, code);
+            });
+          }
+
+          suppressLanguageChangeRef.current =
+            true;
+
+          setLanguage(sharedLanguage);
+
+          suppressLanguageChangeRef.current =
+            false;
+
+          console.log(
+            "🌐 Shared language:",
+            sharedLanguage
+          );
+        } finally {
+          initializingRef.current = false;
         }
       };
 
-      provider.on(
-        "sync",
-        handleSync,
-      );
+      const handleSync = (isSynced) => {
+        console.log(
+          "🔄 Code Yjs sync:",
+          isSynced
+        );
+
+        if (!isSynced) {
+          return;
+        }
+
+        setYjsConnected(true);
+
+        syncSharedState();
+      };
+
+      provider.on("sync", handleSync);
+
+      if (provider.synced) {
+        syncSharedState();
+      }
 
       // ===================================================
       // REMOTE CODE CHANGE
       // ===================================================
 
-      const handleYjsChange = () => {
-        const newCode =
+      const handleYjsCodeChange = () => {
+        const remoteCode =
           yCode.toString();
 
         const editor =
           editorRef.current;
 
-        if (
-          editor &&
-          editor.getValue() ===
-            newCode
-        ) {
-          return;
-        }
-
-        suppressChangeRef.current =
+        suppressCodeChangeRef.current =
           true;
 
-        setCode(newCode);
+        setCode(remoteCode);
 
-        if (editor) {
-          const model =
-            editor.getModel();
+        if (
+          editor &&
+          editor.getValue() !==
+            remoteCode
+        ) {
+          const position =
+            editor.getPosition();
 
-          if (model) {
-            model.setValue(
-              newCode,
-            );
+          editor.setValue(remoteCode);
+
+          if (position) {
+            try {
+              editor.setPosition(
+                position
+              );
+            } catch {
+              // Ignore invalid cursor
+            }
           }
         }
 
-        suppressChangeRef.current =
+        suppressCodeChangeRef.current =
           false;
       };
 
       yCode.observe(
-        handleYjsChange,
+        handleYjsCodeChange
       );
 
       // ===================================================
-      // INITIAL CODE
+      // REMOTE LANGUAGE CHANGE
       // ===================================================
 
-      const initialCode =
-        yCode.toString();
-
-      if (
-        initialCode !==
-        code
-      ) {
-        suppressChangeRef.current =
-          true;
-
-        setCode(initialCode);
-
-        if (
-          editorRef.current
-        ) {
-          editorRef.current.setValue(
-            initialCode,
+      const handleYjsLanguageChange = (
+        event
+      ) => {
+        const changed =
+          event.keysChanged?.has(
+            "language"
           );
+
+        if (!changed) {
+          return;
         }
 
-        suppressChangeRef.current =
+        const remoteLanguage =
+          ySettings.get("language");
+
+        if (
+          typeof remoteLanguage !==
+            "string" ||
+          !remoteLanguage
+        ) {
+          return;
+        }
+
+        suppressLanguageChangeRef.current =
+          true;
+
+        setLanguage(remoteLanguage);
+
+        suppressLanguageChangeRef.current =
           false;
-      }
+      };
+
+      ySettings.observe(
+        handleYjsLanguageChange
+      );
 
       // ===================================================
       // AWARENESS
       // ===================================================
 
-      const updateUsers =
-        (users) => {
-          setOnlineUsers(
-            users,
-          );
-        };
+      const updateUsers = (users) => {
+        setOnlineUsers(
+          Array.isArray(users)
+            ? users
+            : []
+        );
+      };
 
       unsubscribeAwareness =
         subscribeToAwareness(
           awareness,
-          updateUsers,
+          updateUsers
         );
-
-      // ===================================================
-      // CURSOR
-      // ===================================================
-
-      if (
-        editorRef.current
-      ) {
-        const disposable =
-          editorRef.current.onDidChangeCursorPosition(
-            (event) => {
-              setCursorState({
-                lineNumber:
-                  event.position
-                    .lineNumber,
-
-                column:
-                  event.position
-                    .column,
-              });
-            },
-          );
-
-        return () => {
-          disposable.dispose();
-        };
-      }
 
       // ===================================================
       // CLEANUP
@@ -262,45 +321,56 @@ function CodeEditor({
       return () => {
         provider.off(
           "status",
-          handleStatus,
+          handleStatus
         );
 
         provider.off(
           "sync",
-          handleSync,
+          handleSync
         );
 
         yCode.unobserve(
-          handleYjsChange,
+          handleYjsCodeChange
+        );
+
+        ySettings.unobserve(
+          handleYjsLanguageChange
         );
 
         unsubscribeAwareness?.();
 
-        provider.destroy();
+        cursorDisposableRef.current?.dispose();
 
+        cursorDisposableRef.current =
+          null;
+
+        provider.destroy();
         room.doc.destroy();
 
-        providerRef.current =
-          null;
-
-        yCodeRef.current =
-          null;
+        providerRef.current = null;
+        yCodeRef.current = null;
+        ySettingsRef.current = null;
 
         setYjsConnected(false);
         setOnlineUsers([]);
+
+        initializingRef.current = false;
       };
     } catch (error) {
       console.error(
-        "Yjs connection failed:",
-        error,
+        "❌ Code Yjs connection failed:",
+        error
       );
 
       setYjsConnected(false);
     }
+
+    return undefined;
   }, [
     joinedRoom,
     userName,
     setCode,
+    setLanguage,
   ]);
 
   // =====================================================
@@ -310,55 +380,58 @@ function CodeEditor({
   const handleEditorMount =
     useCallback(
       (editor) => {
-        editorRef.current =
-          editor;
+        editorRef.current = editor;
 
         const yCode =
           yCodeRef.current;
 
         if (yCode) {
-          const value =
+          const sharedCode =
             yCode.toString();
 
-          suppressChangeRef.current =
-            true;
+          if (
+            sharedCode.length > 0
+          ) {
+            suppressCodeChangeRef.current =
+              true;
 
-          editor.setValue(
-            value,
-          );
+            editor.setValue(
+              sharedCode
+            );
 
-          setCode(value);
+            setCode(sharedCode);
 
-          suppressChangeRef.current =
-            false;
+            suppressCodeChangeRef.current =
+              false;
+          }
         }
 
-        // Cursor awareness
         const provider =
           providerRef.current;
 
-        if (
-          provider?.awareness
-        ) {
-          editor.onDidChangeCursorPosition(
-            (event) => {
-              provider.awareness.setLocalStateField(
-                "cursor",
-                {
-                  lineNumber:
-                    event.position
-                      .lineNumber,
+        if (provider?.awareness) {
+          cursorDisposableRef.current?.dispose();
 
-                  column:
-                    event.position
-                      .column,
-                },
-              );
-            },
-          );
+          cursorDisposableRef.current =
+            editor.onDidChangeCursorPosition(
+              (event) => {
+                provider.awareness.setLocalStateField(
+                  "cursor",
+                  {
+                    lineNumber:
+                      event.position
+                        .lineNumber,
+
+                    column:
+                      event.position
+                        .column,
+                  }
+                );
+              }
+            );
         }
       },
-      [setCode],
+      [setCode]
     );
 
   // =====================================================
@@ -374,7 +447,7 @@ function CodeEditor({
         setCode(newCode);
 
         if (
-          suppressChangeRef.current
+          suppressCodeChangeRef.current
         ) {
           return;
         }
@@ -389,24 +462,15 @@ function CodeEditor({
         const oldCode =
           yCode.toString();
 
-        if (
-          oldCode ===
-          newCode
-        ) {
+        if (oldCode === newCode) {
           return;
         }
-
-        // ===============================================
-        // FIND CHANGE
-        // ===============================================
 
         let start = 0;
 
         while (
-          start <
-            oldCode.length &&
-          start <
-            newCode.length &&
+          start < oldCode.length &&
+          start < newCode.length &&
           oldCode[start] ===
             newCode[start]
         ) {
@@ -422,12 +486,8 @@ function CodeEditor({
         while (
           oldEnd > start &&
           newEnd > start &&
-          oldCode[
-            oldEnd - 1
-          ] ===
-            newCode[
-              newEnd - 1
-            ]
+          oldCode[oldEnd - 1] ===
+            newCode[newEnd - 1]
         ) {
           oldEnd--;
           newEnd--;
@@ -439,35 +499,83 @@ function CodeEditor({
         const insertedText =
           newCode.slice(
             start,
-            newEnd,
+            newEnd
           );
 
         yCode.doc.transact(
           () => {
             if (
-              deleteLength >
-              0
+              deleteLength > 0
             ) {
               yCode.delete(
                 start,
-                deleteLength,
+                deleteLength
               );
             }
 
             if (
-              insertedText
-                .length >
-              0
+              insertedText.length > 0
             ) {
               yCode.insert(
                 start,
-                insertedText,
+                insertedText
               );
             }
-          },
+          }
         );
       },
-      [setCode],
+      [setCode]
+    );
+
+  // =====================================================
+  // LANGUAGE CHANGE
+  // =====================================================
+
+  const handleLanguageChange =
+    useCallback(
+      (newLanguage) => {
+        setLanguage(
+          newLanguage
+        );
+
+        setOutput("");
+        setPreviewHtml("");
+
+        if (
+          suppressLanguageChangeRef.current
+        ) {
+          return;
+        }
+
+        const ySettings =
+          ySettingsRef.current;
+
+        if (!ySettings) {
+          return;
+        }
+
+        const oldLanguage =
+          ySettings.get(
+            "language"
+          );
+
+        if (
+          oldLanguage ===
+          newLanguage
+        ) {
+          return;
+        }
+
+        ySettings.doc.transact(
+          () => {
+            ySettings.set(
+              "language",
+              newLanguage
+            );
+          }
+        );
+      },
+      [setLanguage]
     );
 
   // =====================================================
@@ -478,20 +586,18 @@ function CodeEditor({
     async () => {
       try {
         await navigator.clipboard.writeText(
-          code || "",
+          code || ""
         );
 
         setCopied(true);
 
-        setTimeout(
-          () =>
-            setCopied(false),
-          1500,
-        );
+        setTimeout(() => {
+          setCopied(false);
+        }, 1500);
       } catch (error) {
         console.error(
-          "Copy failed:",
-          error,
+          "❌ Copy failed:",
+          error
         );
       }
     };
@@ -503,7 +609,7 @@ function CodeEditor({
   const clearCode = () => {
     if (
       !window.confirm(
-        "Are you sure you want to clear the code?",
+        "Are you sure you want to clear the code?"
       )
     ) {
       return;
@@ -512,10 +618,11 @@ function CodeEditor({
     handleCodeChange("");
 
     setOutput("");
+    setPreviewHtml("");
   };
 
   // =====================================================
-  // FORMAT
+  // FORMAT VALUE
   // =====================================================
 
   const formatValue =
@@ -529,12 +636,10 @@ function CodeEditor({
           return JSON.stringify(
             value,
             null,
-            2,
+            2
           );
         } catch {
-          return String(
-            value,
-          );
+          return String(value);
         }
       }
 
@@ -542,14 +647,14 @@ function CodeEditor({
     };
 
   // =====================================================
-  // RUN JS
+  // JAVASCRIPT
   // =====================================================
 
   const runJavaScript =
     () => {
       if (!code.trim()) {
         setOutput(
-          "⚠️ No code to run.",
+          "⚠️ No code to run."
         );
 
         return;
@@ -578,10 +683,8 @@ function CodeEditor({
         ) => {
           logs.push(
             args
-              .map(
-                formatValue,
-              )
-              .join(" "),
+              .map(formatValue)
+              .join(" ")
           );
         };
 
@@ -590,10 +693,8 @@ function CodeEditor({
         ) => {
           logs.push(
             `⚠️ ${args
-              .map(
-                formatValue,
-              )
-              .join(" ")}`,
+              .map(formatValue)
+              .join(" ")}`
           );
         };
 
@@ -602,10 +703,8 @@ function CodeEditor({
         ) => {
           logs.push(
             `❌ ${args
-              .map(
-                formatValue,
-              )
-              .join(" ")}`,
+              .map(formatValue)
+              .join(" ")}`
           );
         };
 
@@ -614,47 +713,39 @@ function CodeEditor({
         ) => {
           logs.push(
             `ℹ️ ${args
-              .map(
-                formatValue,
-              )
-              .join(" ")}`,
+              .map(formatValue)
+              .join(" ")}`
           );
         };
 
         const execute =
-          new Function(
-            code,
-          );
+          new Function(code);
 
         const result =
           execute();
 
         if (
-          result !==
-          undefined
+          result !== undefined
         ) {
           logs.push(
-            formatValue(
-              result,
-            ),
+            formatValue(result)
           );
         }
 
         if (
-          logs.length ===
-          0
+          logs.length === 0
         ) {
           logs.push(
-            "✅ Code executed successfully.",
+            "✅ Code executed successfully."
           );
         }
 
         setOutput(
-          logs.join("\n"),
+          logs.join("\n")
         );
       } catch (error) {
         setOutput(
-          `❌ ${error.name}: ${error.message}`,
+          `❌ ${error.name}: ${error.message}`
         );
       } finally {
         console.log =
@@ -674,23 +765,175 @@ function CodeEditor({
     };
 
   // =====================================================
-  // RUN
+  // BACKEND CODE
+  // Python / C / C++ / Java
   // =====================================================
 
-  const runCode = () => {
-    if (
-      language !==
-      "javascript"
-    ) {
+  const runBackendCode =
+    async () => {
+      const response =
+        await fetch(
+          `${API_URL}/api/execute`,
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              language,
+              code,
+            }),
+          }
+        );
+
+      const rawResponse =
+        await response.text();
+
+      let data;
+
+      try {
+        data =
+          JSON.parse(
+            rawResponse
+          );
+      } catch {
+        throw new Error(
+          `Server returned invalid JSON (HTTP ${response.status}).`
+        );
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          data?.output ||
+            data?.message ||
+            "Code execution failed."
+        );
+      }
+
       setOutput(
-        `⚠️ ${language.toUpperCase()} execution is not available yet.`,
+        data?.output ||
+          "✅ Code executed successfully."
+      );
+    };
+
+  // =====================================================
+  // JSON
+  // =====================================================
+
+  const runJson = () => {
+    if (!code.trim()) {
+      setOutput(
+        "⚠️ No JSON provided."
       );
 
       return;
     }
 
-    runJavaScript();
+    try {
+      const parsed =
+        JSON.parse(code);
+
+      setOutput(
+        JSON.stringify(
+          parsed,
+          null,
+          2
+        )
+      );
+    } catch (error) {
+      setOutput(
+        `❌ JSON Error: ${error.message}`
+      );
+    }
   };
+
+  // =====================================================
+  // HTML
+  // =====================================================
+
+  const runHtml = () => {
+    if (!code.trim()) {
+      setPreviewHtml("");
+
+      setOutput(
+        "⚠️ No HTML provided."
+      );
+
+      return;
+    }
+
+    setPreviewHtml(code);
+
+    setOutput(
+      "✅ HTML preview updated."
+    );
+  };
+
+  // =====================================================
+  // RUN
+  // =====================================================
+
+  const runCode =
+    async () => {
+      if (!code.trim()) {
+        setOutput(
+          "⚠️ No code to run."
+        );
+
+        return;
+      }
+
+      setIsRunning(true);
+
+      try {
+        if (
+          language ===
+          "javascript"
+        ) {
+          runJavaScript();
+
+          return;
+        }
+
+        if (
+          language ===
+          "json"
+        ) {
+          runJson();
+
+          return;
+        }
+
+        if (
+          language ===
+          "html"
+        ) {
+          runHtml();
+
+          return;
+        }
+
+        // Python
+        // C
+        // C++
+        // Java
+        await runBackendCode();
+      } catch (error) {
+        console.error(
+          "❌ Execution error:",
+          error
+        );
+
+        setOutput(
+          `❌ ${error.message}`
+        );
+      } finally {
+        setIsRunning(false);
+      }
+    };
 
   // =====================================================
   // KEYBOARD
@@ -718,26 +961,22 @@ function CodeEditor({
       }
     };
 
+  // =====================================================
+  // LANGUAGE LABEL
+  // =====================================================
+
   const languageLabel = {
-    javascript:
-      "JavaScript",
-
-    typescript:
-      "TypeScript",
-
-    python:
-      "Python",
-
-    java: "Java",
-
+    javascript: "JavaScript",
+    python: "Python",
+    c: "C",
     cpp: "C++",
-
+    java: "Java",
     html: "HTML",
-
-    css: "CSS",
-
     json: "JSON",
   };
+
+  const showPreview =
+    language === "html";
 
   // =====================================================
   // UI
@@ -755,33 +994,28 @@ function CodeEditor({
         overflow: "hidden",
       }}
     >
+      {/* HEADER */}
+
       <div
         style={{
-          padding:
-            "14px 18px",
-          background:
-            "#111827",
+          padding: "14px 18px",
+          background: "#111827",
           borderBottom:
             "1px solid #1f2937",
           display: "flex",
           justifyContent:
             "space-between",
-          alignItems:
-            "center",
+          alignItems: "center",
           gap: "12px",
-          flexWrap:
-            "wrap",
+          flexWrap: "wrap",
         }}
       >
         <div>
           <div
             style={{
-              color:
-                "#f8fafc",
-              fontWeight:
-                "700",
-              fontSize:
-                "17px",
+              color: "#f8fafc",
+              fontWeight: 700,
+              fontSize: "17px",
             }}
           >
             💻 SyncSpace Code
@@ -789,31 +1023,27 @@ function CodeEditor({
 
           <div
             style={{
-              color:
-                "#64748b",
-              fontSize:
-                "12px",
+              color: "#64748b",
+              fontSize: "12px",
             }}
           >
-            Collaborative Code Editor
+            Collaborative Code
+            Editor
           </div>
         </div>
 
         <div
           style={{
-            display:
-              "flex",
+            display: "flex",
             gap: "8px",
-            flexWrap:
-              "wrap",
+            flexWrap: "wrap",
           }}
         >
           <div
             style={{
               padding:
                 "7px 11px",
-              borderRadius:
-                "20px",
+              borderRadius: "20px",
               background:
                 yjsConnected
                   ? "rgba(22,163,74,.12)"
@@ -822,10 +1052,8 @@ function CodeEditor({
                 yjsConnected
                   ? "#4ade80"
                   : "#f87171",
-              fontSize:
-                "12px",
-              fontWeight:
-                "600",
+              fontSize: "12px",
+              fontWeight: 600,
             }}
           >
             ●{" "}
@@ -838,54 +1066,45 @@ function CodeEditor({
             style={{
               padding:
                 "7px 11px",
-              borderRadius:
-                "20px",
+              borderRadius: "20px",
               background:
                 "#172033",
-              color:
-                "#cbd5e1",
-              fontSize:
-                "12px",
+              color: "#cbd5e1",
+              fontSize: "12px",
             }}
           >
             👥{" "}
-            {
-              onlineUsers.length
-            }{" "}
+            {onlineUsers.length}{" "}
             online
           </div>
         </div>
       </div>
 
+      {/* TOOLBAR */}
+
       <div
         style={{
           padding:
             "10px 14px",
-          background:
-            "#0f172a",
+          background: "#0f172a",
           borderBottom:
             "1px solid #1e293b",
-          display:
-            "flex",
+          display: "flex",
           justifyContent:
             "space-between",
           gap: "10px",
-          flexWrap:
-            "wrap",
+          flexWrap: "wrap",
         }}
       >
         <select
-          value={
-            language
+          value={language}
+          onChange={(event) =>
+            handleLanguageChange(
+              event.target.value
+            )
           }
-          onChange={(e) => {
-            setLanguage(
-              e.target.value,
-            );
-          }}
           style={{
-            height:
-              "34px",
+            height: "34px",
             padding:
               "0 11px",
             background:
@@ -902,28 +1121,24 @@ function CodeEditor({
             JavaScript
           </option>
 
-          <option value="typescript">
-            TypeScript
-          </option>
-
           <option value="python">
             Python
           </option>
 
-          <option value="java">
-            Java
+          <option value="c">
+            C
           </option>
 
           <option value="cpp">
             C++
           </option>
 
-          <option value="html">
-            HTML
+          <option value="java">
+            Java
           </option>
 
-          <option value="css">
-            CSS
+          <option value="html">
+            HTML
           </option>
 
           <option value="json">
@@ -933,19 +1148,14 @@ function CodeEditor({
 
         <div
           style={{
-            display:
-              "flex",
+            display: "flex",
             gap: "7px",
           }}
         >
           <button
             type="button"
-            onClick={
-              runCode
-            }
-            disabled={
-              isRunning
-            }
+            onClick={runCode}
+            disabled={isRunning}
           >
             {isRunning
               ? "⏳ Running..."
@@ -954,9 +1164,7 @@ function CodeEditor({
 
           <button
             type="button"
-            onClick={
-              copyCode
-            }
+            onClick={copyCode}
           >
             {copied
               ? "✓ Copied"
@@ -965,20 +1173,18 @@ function CodeEditor({
 
           <button
             type="button"
-            onClick={
-              clearCode
-            }
+            onClick={clearCode}
           >
             🗑 Clear
           </button>
         </div>
       </div>
 
+      {/* EDITOR */}
+
       <Editor
         height="520px"
-        language={
-          language
-        }
+        language={language}
         theme="vs-dark"
         defaultValue=""
         onChange={
@@ -989,38 +1195,85 @@ function CodeEditor({
         }
         options={{
           fontSize: 15,
-
-          automaticLayout:
-            true,
+          automaticLayout: true,
 
           minimap: {
-            enabled:
-              true,
+            enabled: true,
           },
 
           wordWrap: "on",
-
-          smoothScrolling:
-            true,
-
+          smoothScrolling: true,
           cursorBlinking:
             "smooth",
 
           bracketPairColorization:
             {
-              enabled:
-                true,
+              enabled: true,
             },
 
           tabSize: 2,
+          insertSpaces: true,
 
-          insertSpaces:
-            true,
+          padding: {
+            top: 10,
+            bottom: 10,
+          },
+
+          scrollBeyondLastLine:
+            false,
+
+          renderWhitespace:
+            "selection",
         }}
         onKeyDown={
           handleEditorKeyDown
         }
       />
+
+      {/* HTML PREVIEW */}
+
+      {showPreview && (
+        <div
+          style={{
+            background:
+              "#ffffff",
+            borderTop:
+              "1px solid #1e293b",
+          }}
+        >
+          <div
+            style={{
+              padding:
+                "10px 14px",
+              background:
+                "#111827",
+              color:
+                "#cbd5e1",
+              fontSize: "12px",
+              fontWeight: 600,
+            }}
+          >
+            🌐 HTML PREVIEW
+          </div>
+
+          <iframe
+            title="SyncSpace HTML Preview"
+            sandbox=""
+            srcDoc={previewHtml}
+            style={{
+              display:
+                "block",
+              width: "100%",
+              height: "320px",
+              border: "none",
+              background:
+                "#fff",
+            }}
+          />
+        </div>
+      )}
+
+      {/* OUTPUT */}
 
       <div
         style={{
@@ -1028,10 +1281,22 @@ function CodeEditor({
             "#020617",
           minHeight:
             "120px",
-          padding:
-            "16px",
+          padding: "16px",
         }}
       >
+        <div
+          style={{
+            color:
+              "#64748b",
+            fontSize:
+              "12px",
+            marginBottom:
+              "8px",
+          }}
+        >
+          OUTPUT
+        </div>
+
         <pre
           style={{
             margin: 0,
@@ -1039,12 +1304,16 @@ function CodeEditor({
               "#86efac",
             whiteSpace:
               "pre-wrap",
+            fontFamily:
+              "monospace",
           }}
         >
           {output ||
             "▶ Click Run or press Ctrl + Enter"}
         </pre>
       </div>
+
+      {/* FOOTER */}
 
       <div
         style={{
@@ -1062,15 +1331,12 @@ function CodeEditor({
         <strong>
           {languageLabel[
             language
-          ] ||
-            language}
+          ] || language}
         </strong>{" "}
         • Lines:{" "}
-        {
-          (code || "")
-            .split("\n")
-            .length
-        }{" "}
+        {(code || "")
+          .split("\n")
+          .length}{" "}
         • Characters:{" "}
         {(code || "").length}
       </div>

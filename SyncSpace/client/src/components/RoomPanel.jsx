@@ -1,76 +1,58 @@
 import { useEffect, useState } from "react";
+import "./RoomPanel.css";
 
 function RoomPanel({
   roomId,
   setRoomId,
   joinedRoom,
+  onCreateRoom,
   onJoinRoom,
   userName,
   setUserName,
-  onChangeName,
 }) {
-  const [editingName, setEditingName] = useState(false);
+  const [mode, setMode] = useState("create");
   const [newName, setNewName] = useState(userName || "");
 
-  // userName change hone par input bhi update ho
   useEffect(() => {
     setNewName(userName || "");
   }, [userName]);
 
-  const startEditingName = () => {
-    setNewName(userName || "");
-    setEditingName(true);
-  };
-
-  const cancelEditingName = () => {
-    setNewName(userName || "");
-    setEditingName(false);
-  };
-
-  const saveName = () => {
-    const trimmedName = newName.trim();
-
-    if (!trimmedName) {
-      alert("Please enter your name.");
-      return;
-    }
-
-    if (trimmedName === userName) {
-      setEditingName(false);
-      return;
-    }
-
-    setUserName(trimmedName);
-
-    // IMPORTANT: tab-specific storage
-    sessionStorage.setItem(
-      "syncspaceName",
-      trimmedName
-    );
-
-    if (onChangeName) {
-      onChangeName(trimmedName);
-    }
-
-    setEditingName(false);
-  };
+  /* =====================================================
+     NAME CHANGE
+  ===================================================== */
 
   const handleNameChange = (event) => {
     const value = event.target.value;
 
     setNewName(value);
-
-    // IMPORTANT:
-    // Parent App ka userName bhi immediately update karo.
     setUserName(value);
   };
 
-  const handleJoin = () => {
+  /* =====================================================
+     CREATE ROOM
+  ===================================================== */
+
+  const handleCreateRoom = () => {
     const name = newName.trim();
-    const room = roomId.trim();
 
     if (!name) {
-      alert("Please enter your name.");
+      alert("Please enter your name first.");
+      return;
+    }
+
+    onCreateRoom(name);
+  };
+
+  /* =====================================================
+     JOIN ROOM
+  ===================================================== */
+
+  const handleJoinRoom = () => {
+    const name = newName.trim();
+    const room = roomId.trim().toUpperCase();
+
+    if (!name) {
+      alert("Please enter your name first.");
       return;
     }
 
@@ -79,182 +61,245 @@ function RoomPanel({
       return;
     }
 
-    // Parent state ko definitely update karo
-    setUserName(name);
-    setRoomId(room);
-
-    sessionStorage.setItem(
-      "syncspaceName",
-      name
-    );
-
-    sessionStorage.setItem(
-      "syncspaceRoom",
-      room
-    );
-
-    // Ab App.jsx ka joinRoom chalega
-    onJoinRoom();
+    onJoinRoom(name, room);
   };
 
-  return (
-    <div className="room-panel">
+  /* =====================================================
+     ENTER KEY
+  ===================================================== */
 
+  const handleRoomKeyDown = (event) => {
+    if (event.key === "Enter") {
+      handleJoinRoom();
+    }
+  };
+
+  /* =====================================================
+     IF ALREADY JOINED
+     
+     Normally App.jsx handles the active-room dashboard,
+     but this keeps RoomPanel safe if reused elsewhere.
+  ===================================================== */
+
+  if (joinedRoom) {
+    return (
+      <div className="room-panel room-panel-joined">
+        <div className="room-panel-header">
+          <div>
+            <div className="room-panel-eyebrow">
+              WORKSPACE
+            </div>
+
+            <h2>{joinedRoom}</h2>
+
+            <p>
+              Your SyncSpace workspace is live.
+            </p>
+          </div>
+
+          <div className="room-live-badge">
+            <span />
+            Live
+          </div>
+        </div>
+
+        <div className="room-id-card">
+          <div className="room-id-info">
+            <span className="room-card-label">
+              ROOM ID
+            </span>
+
+            <strong>{joinedRoom}</strong>
+          </div>
+        </div>
+
+        <div className="room-connected-box">
+          <div className="room-connected-icon">
+            🟢
+          </div>
+
+          <div>
+            <strong>
+              Connected to workspace
+            </strong>
+
+            <span>
+              Real-time collaboration is active.
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* =====================================================
+     CREATE / JOIN PANEL
+  ===================================================== */
+
+  return (
+    <div className="room-panel room-panel-dashboard">
       {/* HEADER */}
 
       <div className="room-panel-header">
         <div>
-          <h2>Collaboration Room</h2>
+          <div className="room-panel-eyebrow">
+            SYNCSpace WORKSPACE
+          </div>
+
+          <h2>Start collaborating</h2>
 
           <p>
-            Join a room and collaborate in real time.
+            Create a new workspace or join an
+            existing one with a Room ID.
           </p>
+        </div>
+
+        <div className="room-dashboard-icon">
+          🚀
         </div>
       </div>
 
       {/* USER NAME */}
 
       <div className="room-field">
-        <label>
+        <label htmlFor="syncspace-name">
           👤 Your Name
         </label>
 
-        {!joinedRoom || editingName ? (
-          <>
-            <input
-              type="text"
-              placeholder="Enter your name"
-              value={newName}
-              onChange={handleNameChange}
-              maxLength={30}
-              autoFocus={editingName}
-            />
-
-            {joinedRoom && editingName && (
-              <div
-                style={{
-                  display: "flex",
-                  gap: "8px",
-                  marginTop: "8px",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={saveName}
-                  style={{
-                    padding: "8px 12px",
-                    border: "none",
-                    borderRadius: "7px",
-                    background: "#16a34a",
-                    color: "white",
-                    cursor: "pointer",
-                    fontWeight: 600,
-                  }}
-                >
-                  ✓ Save Name
-                </button>
-
-                <button
-                  type="button"
-                  onClick={cancelEditingName}
-                  style={{
-                    padding: "8px 12px",
-                    border: "1px solid #475569",
-                    borderRadius: "7px",
-                    background: "#1e293b",
-                    color: "#e2e8f0",
-                    cursor: "pointer",
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            )}
-          </>
-        ) : (
-          <div
-            style={{
-              display: "flex",
-              gap: "8px",
-              alignItems: "center",
-            }}
-          >
-            <input
-              type="text"
-              value={userName}
-              readOnly
-              style={{
-                flex: 1,
-              }}
-            />
-
-            <button
-              type="button"
-              onClick={startEditingName}
-              style={{
-                padding: "11px 13px",
-                border: "1px solid #475569",
-                borderRadius: "8px",
-                background: "#1e293b",
-                color: "#ffffff",
-                cursor: "pointer",
-                fontWeight: 600,
-              }}
-            >
-              ✏️ Edit
-            </button>
-          </div>
-        )}
-      </div>
-
-      {/* ROOM ID */}
-
-      <div className="room-field">
-        <label>
-          📁 Room ID
-        </label>
-
         <input
+          id="syncspace-name"
           type="text"
-          placeholder="Enter Room ID"
-          value={roomId}
-          onChange={(event) =>
-            setRoomId(event.target.value)
-          }
-          disabled={Boolean(joinedRoom)}
+          placeholder="Enter your name"
+          value={newName}
+          onChange={handleNameChange}
+          maxLength={30}
+          autoComplete="name"
         />
       </div>
 
-      {/* JOIN */}
+      {/* MODE TABS */}
 
-      {!joinedRoom && (
+      <div className="room-mode-tabs">
         <button
           type="button"
-          className="room-join-button"
-          onClick={handleJoin}
+          className={
+            mode === "create"
+              ? "room-mode-tab active"
+              : "room-mode-tab"
+          }
+          onClick={() => setMode("create")}
         >
-          🚀 Join Room
+          ✨ Create Room
         </button>
-      )}
 
-      {/* JOINED */}
+        <button
+          type="button"
+          className={
+            mode === "join"
+              ? "room-mode-tab active"
+              : "room-mode-tab"
+          }
+          onClick={() => setMode("join")}
+        >
+          🔑 Join Room
+        </button>
+      </div>
 
-      {joinedRoom && (
-        <div className="room-joined-box">
-          <div className="room-joined-status">
-            🟢 Joined Room
+      {/* =================================================
+         CREATE
+      ================================================= */}
+
+      {mode === "create" && (
+        <div className="room-mode-content">
+          <div className="room-action-card">
+            <div className="room-action-icon">
+              🚀
+            </div>
+
+            <div>
+              <h3>
+                Create a new workspace
+              </h3>
+
+              <p>
+                We'll generate a unique Room ID
+                automatically for you.
+              </p>
+            </div>
           </div>
 
-          <div className="room-joined-id">
-            {joinedRoom}
-          </div>
-
-          <div className="room-user">
-            👤 {userName || "Anonymous"}
-          </div>
+          <button
+            type="button"
+            className="room-primary-button"
+            onClick={handleCreateRoom}
+          >
+            🚀 Create New Room
+          </button>
         </div>
       )}
 
+      {/* =================================================
+         JOIN
+      ================================================= */}
+
+      {mode === "join" && (
+        <div className="room-mode-content">
+          <div className="room-field">
+            <label htmlFor="syncspace-room-id">
+              📁 Room ID
+            </label>
+
+            <input
+              id="syncspace-room-id"
+              type="text"
+              placeholder="Example: ROOM-A1B2C3"
+              value={roomId}
+              onChange={(event) =>
+                setRoomId(
+                  event.target.value.toUpperCase()
+                )
+              }
+              onKeyDown={handleRoomKeyDown}
+              maxLength={50}
+              autoComplete="off"
+            />
+          </div>
+
+          <button
+            type="button"
+            className="room-primary-button"
+            onClick={handleJoinRoom}
+          >
+            🔗 Join Workspace
+          </button>
+        </div>
+      )}
+
+      {/* =================================================
+         FEATURES
+      ================================================= */}
+
+      <div className="room-dashboard-features">
+        <div>
+          <span>💻</span>
+          <strong>Live Code</strong>
+        </div>
+
+        <div>
+          <span>🖍</span>
+          <strong>Whiteboard</strong>
+        </div>
+
+        <div>
+          <span>💬</span>
+          <strong>Team Chat</strong>
+        </div>
+
+        <div>
+          <span>👥</span>
+          <strong>Real-time Team</strong>
+        </div>
+      </div>
     </div>
   );
 }

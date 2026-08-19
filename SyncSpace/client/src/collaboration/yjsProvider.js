@@ -1,10 +1,24 @@
+
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 
-export function createRoomProvider(roomId, user = {}) {
-  if (!roomId) {
-    throw new Error("Room ID is required.");
+const YJS_SERVER_URL = "ws://localhost:1234";
+
+export function createRoomProvider(
+  roomId,
+  user = {}
+) {
+  if (
+    !roomId ||
+    !String(roomId).trim()
+  ) {
+    throw new Error(
+      "Room ID is required."
+    );
   }
+
+  const normalizedRoomId =
+    String(roomId).trim();
 
   // =====================================================
   // YJS DOCUMENT
@@ -16,79 +30,122 @@ export function createRoomProvider(roomId, user = {}) {
   // WEBSOCKET PROVIDER
   // =====================================================
 
-  const provider = new WebsocketProvider(
-    "ws://localhost:1234",
-    roomId,
-    doc,
-    {
-      connect: true,
-    }
-  );
+  const provider =
+    new WebsocketProvider(
+      YJS_SERVER_URL,
+      normalizedRoomId,
+      doc,
+      {
+        connect: true,
+      }
+    );
 
   // =====================================================
-  // CONNECTION STATUS
+  // AWARENESS
   // =====================================================
 
-  provider.on("status", ({ status }) => {
-    console.log("🔌 Yjs:", status);
-  });
+  const awareness =
+    provider.awareness;
 
   // =====================================================
-  // SYNC STATUS
+  // USER
   // =====================================================
 
-  provider.on("sync", (isSynced) => {
-    console.log("🔄 Yjs sync:", isSynced);
-  });
+  const setUserName = (
+    name
+  ) => {
+    const safeName =
+      String(name || "").trim() ||
+      "Anonymous";
 
-  // =====================================================
-  // AWARENESS USER
-  // =====================================================
-
-  provider.awareness.setLocalStateField("user", {
-    name:
-      user.name?.trim() ||
-      "Anonymous",
-  });
-
-  // =====================================================
-  // SET USER NAME
-  // =====================================================
-
-  const setUserName = (name) => {
-    provider.awareness.setLocalStateField(
+    awareness.setLocalStateField(
       "user",
       {
-        name:
-          name?.trim() ||
-          "Anonymous",
+        name: safeName,
       }
     );
   };
+
+  setUserName(user.name);
 
   // =====================================================
   // CURSOR
   // =====================================================
 
-  const setCursorState = (cursor) => {
-    provider.awareness.setLocalStateField(
+  const setCursorState = (
+    cursor
+  ) => {
+    awareness.setLocalStateField(
       "cursor",
       cursor || null
     );
   };
 
   // =====================================================
-  // CODE
+  // SHARED CODE
   // =====================================================
 
-  const code = doc.getText("code");
+  const code =
+    doc.getText("code");
+
+  // =====================================================
+  // SHARED EDITOR STATE
+  // =====================================================
+
+  /*
+   * IMPORTANT:
+   *
+   * Code and language are shared through
+   * the same Yjs document.
+   *
+   * Language is stored as:
+   *
+   * editorState.get("language")
+   *
+   * Example:
+   *
+   * "javascript"
+   * "python"
+   * "java"
+   * "cpp"
+   */
+
+  const editorState =
+    doc.getMap(
+      "editor-state"
+    );
+
+  // =====================================================
+  // DEFAULT LANGUAGE
+  // =====================================================
+
+  /*
+   * DO NOT overwrite an existing
+   * shared language.
+   *
+   * Only create the value when
+   * the key does not exist.
+   */
+
+  if (
+    !editorState.has(
+      "language"
+    )
+  ) {
+    editorState.set(
+      "language",
+      "javascript"
+    );
+  }
 
   // =====================================================
   // WHITEBOARD
   // =====================================================
 
   const whiteboard =
-    doc.getArray("whiteboard");
+    doc.getArray(
+      "whiteboard"
+    );
 
   // =====================================================
   // WHITEBOARD REDO
@@ -100,30 +157,55 @@ export function createRoomProvider(roomId, user = {}) {
     );
 
   // =====================================================
-  // DEBUG CODE CHANGES
+  // CONNECTION LOGS
   // =====================================================
 
-  code.observe(() => {
+  const handleStatus = ({
+    status,
+  }) => {
     console.log(
-      "📝 Y.Text changed:",
-      code.toString()
+      `🔌 Yjs [${normalizedRoomId}]:`,
+      status
     );
-  });
+  };
 
-  // =====================================================
-  // DEBUG WHITEBOARD CHANGES
-  // =====================================================
-
-  whiteboard.observe(() => {
+  const handleSync = (
+    isSynced
+  ) => {
     console.log(
-      "🎨 Whiteboard changed:",
-      whiteboard.length,
-      "strokes"
+      `🔄 Yjs [${normalizedRoomId}] synced:`,
+      isSynced
     );
-  });
+
+    if (!isSynced) {
+      return;
+    }
+
+    console.log(
+      "🌐 Shared language:",
+      editorState.get(
+        "language"
+      )
+    );
+
+    console.log(
+      "🌐 Shared code length:",
+      code.toString().length
+    );
+  };
+
+  provider.on(
+    "status",
+    handleStatus
+  );
+
+  provider.on(
+    "sync",
+    handleSync
+  );
 
   // =====================================================
-  // RETURN EVERYTHING
+  // RETURN
   // =====================================================
 
   return {
@@ -131,10 +213,11 @@ export function createRoomProvider(roomId, user = {}) {
 
     provider,
 
-    awareness:
-      provider.awareness,
+    awareness,
 
     code,
+
+    editorState,
 
     whiteboard,
 
@@ -143,5 +226,8 @@ export function createRoomProvider(roomId, user = {}) {
     setUserName,
 
     setCursorState,
+
+    roomId:
+      normalizedRoomId,
   };
 }

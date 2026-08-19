@@ -1127,25 +1127,14 @@ function KonvaWhiteboard({
           }}
         >
           <Stage
-            ref={stageRef}
-            width={stageWidth}
-            height={CANVAS_HEIGHT}
-            onPointerDown={
-              handlePointerDown
-            }
-            onPointerMove={
-              handlePointerMove
-            }
-            onPointerUp={
-              handlePointerUp
-            }
-            onPointerLeave={
-              handlePointerUp
-            }
-            onPointerCancel={
-              handlePointerUp
-            }
-          >
+  ref={stageRef}
+  width={stageWidth}
+  height={CANVAS_HEIGHT}
+  onPointerDown={handlePointerDown}
+  onPointerMove={handlePointerMove}
+  onPointerUp={handlePointerUp}
+  onPointerCancel={handlePointerUp}
+>
             <Layer>
               {lines.map(
                 (

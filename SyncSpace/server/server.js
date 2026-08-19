@@ -1,3 +1,4 @@
+
 require("dotenv").config();
 
 const express = require("express");
@@ -8,6 +9,7 @@ const { Server } = require("socket.io");
 
 const Workspace = require("./models/Workspace");
 const authRoutes = require("./routes/auth");
+const executeRoutes = require("./routes/execute");
 
 const app = express();
 
@@ -29,13 +31,15 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: allowedOrigins,
-    methods: ["GET", "POST"],
-  }),
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    credentials: true,
+  })
 );
 
-app.use(express.json());
+app.use(express.json({ limit: "2mb" }));
 
 app.use("/api/auth", authRoutes);
+app.use("/api/execute", executeRoutes);
 
 /* =====================================================
    HTTP SERVER
@@ -51,6 +55,7 @@ const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
     methods: ["GET", "POST"],
+    credentials: true,
   },
 });
 
@@ -84,6 +89,10 @@ const roomUsers = {};
 const roomStates = {};
 const saveTimers = {};
 
+/* =====================================================
+   DEFAULT CODE
+===================================================== */
+
 const DEFAULT_CODE =
   '// Welcome to SyncSpace\nconsole.log("Hello SyncSpace!");';
 
@@ -104,18 +113,20 @@ const createRoomState = () => ({
 ===================================================== */
 
 const normalizeLine = (line) => {
-  if (!line) return null;
+  if (!line || typeof line !== "object") {
+    return null;
+  }
 
   const points = Array.isArray(line.points)
     ? line.points
         .map((point) => ({
-          x: Number(point?.x) || 0,
-          y: Number(point?.y) || 0,
+          x: Number(point?.x),
+          y: Number(point?.y),
         }))
         .filter(
           (point) =>
             Number.isFinite(point.x) &&
-            Number.isFinite(point.y),
+            Number.isFinite(point.y)
         )
     : [];
 
@@ -129,15 +140,15 @@ const normalizeLine = (line) => {
         line.id ||
           `line-${Date.now()}-${Math.random()
             .toString(36)
-            .slice(2)}`,
+            .slice(2)}`
       ),
 
     type:
       typeof line.type === "string"
         ? line.type
         : typeof line.tool === "string"
-          ? line.tool
-          : "pen",
+        ? line.tool
+        : "pen",
 
     tool:
       typeof line.tool === "string"
@@ -152,7 +163,9 @@ const normalizeLine = (line) => {
         : "#2563eb",
 
     brushSize:
-      Number(line.brushSize) || 4,
+      Number.isFinite(Number(line.brushSize))
+        ? Number(line.brushSize)
+        : 4,
 
     socketId:
       typeof line.socketId === "string"
@@ -162,13 +175,12 @@ const normalizeLine = (line) => {
 };
 
 /* =====================================================
-   GET USER NAME
+   USER NAME
 ===================================================== */
 
 const getUserName = (socket, roomId) => {
   const user = roomUsers[roomId]?.find(
-    (member) =>
-      member.socketId === socket.id,
+    (member) => member.socketId === socket.id
   );
 
   return (
@@ -184,7 +196,7 @@ const getUserName = (socket, roomId) => {
 const broadcastRoomUsers = (roomId) => {
   io.to(roomId).emit(
     "room-users",
-    roomUsers[roomId] || [],
+    roomUsers[roomId] || []
   );
 };
 
@@ -203,9 +215,7 @@ const loadWorkspace = async (roomId) => {
       return createRoomState();
     }
 
-    const lines = Array.isArray(
-      workspace.lines,
-    )
+    const lines = Array.isArray(workspace.lines)
       ? workspace.lines
           .map(normalizeLine)
           .filter(Boolean)
@@ -217,14 +227,12 @@ const loadWorkspace = async (roomId) => {
       texts: [],
 
       code:
-        typeof workspace.code ===
-        "string"
+        typeof workspace.code === "string"
           ? workspace.code
           : DEFAULT_CODE,
 
       language:
-        typeof workspace.language ===
-        "string"
+        typeof workspace.language === "string"
           ? workspace.language
           : "javascript",
 
@@ -233,7 +241,7 @@ const loadWorkspace = async (roomId) => {
   } catch (error) {
     console.error(
       "❌ MongoDB load error:",
-      error.message,
+      error.message
     );
 
     return createRoomState();
@@ -241,18 +249,18 @@ const loadWorkspace = async (roomId) => {
 };
 
 /* =====================================================
-   SAVE WORKSPACE IMMEDIATELY
+   SAVE WORKSPACE
 ===================================================== */
 
 const saveWorkspaceNow = async (roomId) => {
   try {
     const state = roomStates[roomId];
 
-    if (!state) return;
+    if (!state) {
+      return;
+    }
 
-    const lines = Array.isArray(
-      state.lines,
-    )
+    const lines = Array.isArray(state.lines)
       ? state.lines
           .map(normalizeLine)
           .filter(Boolean)
@@ -271,8 +279,7 @@ const saveWorkspaceNow = async (roomId) => {
               : DEFAULT_CODE,
 
           language:
-            typeof state.language ===
-            "string"
+            typeof state.language === "string"
               ? state.language
               : "javascript",
 
@@ -284,16 +291,16 @@ const saveWorkspaceNow = async (roomId) => {
         upsert: true,
         new: true,
         setDefaultsOnInsert: true,
-      },
+      }
     );
 
     console.log(
-      `💾 Saved workspace: ${roomId}`,
+      `💾 Saved workspace: ${roomId}`
     );
   } catch (error) {
     console.error(
       "❌ MongoDB save error:",
-      error.message,
+      error.message
     );
   }
 };
@@ -313,7 +320,7 @@ const scheduleSave = (roomId) => {
 
       await saveWorkspaceNow(roomId);
     },
-    300,
+    300
   );
 };
 
@@ -321,12 +328,12 @@ const scheduleSave = (roomId) => {
    BROADCAST FULL ROOM STATE
 ===================================================== */
 
-const broadcastRoomState = (
-  roomId,
-) => {
+const broadcastRoomState = (roomId) => {
   const state = roomStates[roomId];
 
-  if (!state) return;
+  if (!state) {
+    return;
+  }
 
   io.to(roomId).emit(
     "room-state",
@@ -338,13 +345,10 @@ const broadcastRoomState = (
       code: state.code,
 
       language:
-        state.language ||
-        "javascript",
+        state.language || "javascript",
 
-      redoLines: [
-        ...state.redoLines,
-      ],
-    },
+      redoLines: [...state.redoLines],
+    }
   );
 };
 
@@ -355,7 +359,7 @@ const broadcastRoomState = (
 io.on("connection", (socket) => {
   console.log(
     "🟢 Socket connected:",
-    socket.id,
+    socket.id
   );
 
   /* ===================================================
@@ -373,8 +377,7 @@ io.on("connection", (socket) => {
 
         const name =
           typeof data === "object" &&
-          typeof data?.name ===
-            "string"
+          typeof data?.name === "string"
             ? data.name.trim()
             : "";
 
@@ -384,7 +387,7 @@ io.on("connection", (socket) => {
             {
               message:
                 "Room ID is required.",
-            },
+            }
           );
 
           return;
@@ -392,14 +395,11 @@ io.on("connection", (socket) => {
 
         const safeName =
           name.slice(0, 30) ||
-          `User-${socket.id.slice(
-            0,
-            4,
-          )}`;
+          `User-${socket.id.slice(0, 4)}`;
 
-        /* -----------------------------------------------
+        /* ---------------------------------------------
            LEAVE OLD ROOM
-        ----------------------------------------------- */
+        --------------------------------------------- */
 
         if (
           socket.currentRoom &&
@@ -412,41 +412,34 @@ io.on("connection", (socket) => {
 
           if (roomUsers[oldRoom]) {
             roomUsers[oldRoom] =
-              roomUsers[
-                oldRoom
-              ].filter(
+              roomUsers[oldRoom].filter(
                 (user) =>
                   user.socketId !==
-                  socket.id,
+                  socket.id
               );
 
-            broadcastRoomUsers(
-              oldRoom,
-            );
+            broadcastRoomUsers(oldRoom);
 
             if (
-              roomUsers[oldRoom]
-                .length === 0
+              roomUsers[oldRoom].length ===
+              0
             ) {
-              delete roomUsers[
-                oldRoom
-              ];
+              delete roomUsers[oldRoom];
             }
           }
         }
 
-        /* -----------------------------------------------
+        /* ---------------------------------------------
            JOIN
-        ----------------------------------------------- */
+        --------------------------------------------- */
 
-        socket.currentRoom =
-          roomId;
+        socket.currentRoom = roomId;
 
         socket.join(roomId);
 
-        /* -----------------------------------------------
+        /* ---------------------------------------------
            USERS
-        ----------------------------------------------- */
+        --------------------------------------------- */
 
         if (!roomUsers[roomId]) {
           roomUsers[roomId] = [];
@@ -456,7 +449,7 @@ io.on("connection", (socket) => {
           roomUsers[roomId].filter(
             (user) =>
               user.socketId !==
-              socket.id,
+              socket.id
           );
 
         roomUsers[roomId].push({
@@ -464,35 +457,31 @@ io.on("connection", (socket) => {
           name: safeName,
         });
 
-        /* -----------------------------------------------
-           LOAD DATABASE
-        ----------------------------------------------- */
+        /* ---------------------------------------------
+           LOAD STATE
+        --------------------------------------------- */
 
         if (!roomStates[roomId]) {
           roomStates[roomId] =
-            await loadWorkspace(
-              roomId,
-            );
+            await loadWorkspace(roomId);
         }
 
         const state =
           roomStates[roomId];
 
         console.log(
-          `🚀 ${safeName} joined ${roomId}`,
+          `🚀 ${safeName} joined ${roomId}`
         );
 
-        /* -----------------------------------------------
-           SEND USERS
-        ----------------------------------------------- */
+        /* ---------------------------------------------
+           USERS
+        --------------------------------------------- */
 
-        broadcastRoomUsers(
-          roomId,
-        );
+        broadcastRoomUsers(roomId);
 
-        /* -----------------------------------------------
-           SEND COMPLETE STATE
-        ----------------------------------------------- */
+        /* ---------------------------------------------
+           STATE
+        --------------------------------------------- */
 
         socket.emit(
           "room-state",
@@ -510,16 +499,16 @@ io.on("connection", (socket) => {
             redoLines: [
               ...state.redoLines,
             ],
-          },
+          }
         );
 
         console.log(
-          `📦 State sent to ${safeName}`,
+          `📦 State sent to ${safeName}`
         );
       } catch (error) {
         console.error(
           "❌ Join room error:",
-          error,
+          error
         );
 
         socket.emit(
@@ -527,10 +516,10 @@ io.on("connection", (socket) => {
           {
             message:
               "Unable to join room.",
-          },
+          }
         );
       }
-    },
+    }
   );
 
   /* ===================================================
@@ -543,17 +532,19 @@ io.on("connection", (socket) => {
       const roomId =
         socket.currentRoom;
 
-      if (!roomId) return;
+      if (!roomId) {
+        return;
+      }
 
       const newName =
-        typeof data?.name ===
-        "string"
+        typeof data?.name === "string"
           ? data.name.trim()
           : "";
 
-      if (!newName) return;
-
-      if (newName.length > 30) {
+      if (
+        !newName ||
+        newName.length > 30
+      ) {
         return;
       }
 
@@ -561,25 +552,24 @@ io.on("connection", (socket) => {
         roomUsers[roomId]?.find(
           (member) =>
             member.socketId ===
-            socket.id,
+            socket.id
         );
 
-      if (!user) return;
+      if (!user) {
+        return;
+      }
 
-      const oldName =
-        user.name;
+      const oldName = user.name;
 
       user.name = newName;
 
-      broadcastRoomUsers(
-        roomId,
-      );
+      broadcastRoomUsers(roomId);
 
       socket.emit(
         "name-changed",
         {
           name: newName,
-        },
+        }
       );
 
       socket
@@ -591,9 +581,9 @@ io.on("connection", (socket) => {
               socket.id,
             oldName,
             newName,
-          },
+          }
         );
-    },
+    }
   );
 
   /* ===================================================
@@ -607,11 +597,13 @@ io.on("connection", (socket) => {
         data?.roomId ||
         socket.currentRoom;
 
-      if (!roomId) return;
+      if (!roomId) {
+        return;
+      }
 
       if (
         !Array.isArray(
-          data?.points,
+          data?.points
         )
       ) {
         return;
@@ -633,7 +625,7 @@ io.on("connection", (socket) => {
 
       const tool =
         allowedTypes.includes(
-          data.tool,
+          data.tool
         )
           ? data.tool
           : "pen";
@@ -641,22 +633,17 @@ io.on("connection", (socket) => {
       const points =
         data.points
           .map((point) => ({
-            x:
-              Number(point?.x) ||
-              0,
-
-            y:
-              Number(point?.y) ||
-              0,
+            x: Number(point?.x),
+            y: Number(point?.y),
           }))
           .filter(
             (point) =>
               Number.isFinite(
-                point.x,
+                point.x
               ) &&
               Number.isFinite(
-                point.y,
-              ),
+                point.y
+              )
           );
 
       if (points.length === 0) {
@@ -669,7 +656,7 @@ io.on("connection", (socket) => {
             data.id ||
               `${socket.id}-${Date.now()}-${Math.random()
                 .toString(36)
-                .slice(2, 8)}`,
+                .slice(2, 8)}`
           ),
 
         type: tool,
@@ -679,17 +666,18 @@ io.on("connection", (socket) => {
         points,
 
         color:
-          typeof data.color ===
-          "string"
+          typeof data.color === "string"
             ? data.color
             : "#2563eb",
 
         brushSize:
-          Number(data.brushSize) ||
-          4,
+          Number.isFinite(
+            Number(data.brushSize)
+          )
+            ? Number(data.brushSize)
+            : 4,
 
-        socketId:
-          socket.id,
+        socketId: socket.id,
       };
 
       const state =
@@ -699,33 +687,27 @@ io.on("connection", (socket) => {
         state.lines.some(
           (line) =>
             line.id ===
-            newLine.id,
+            newLine.id
         );
 
-      if (exists) return;
+      if (exists) {
+        return;
+      }
 
-      state.lines.push(
-        newLine,
-      );
+      state.lines.push(newLine);
 
-      /* New drawing invalidates redo */
       state.redoLines = [];
-
-      /* -----------------------------------------------
-         SEND TO EVERYONE
-         Including sender.
-      ----------------------------------------------- */
 
       io.to(roomId).emit(
         "draw-line",
-        newLine,
+        newLine
       );
 
       io.to(roomId).emit(
         "redo-state",
         {
           redoLines: [],
-        },
+        }
       );
 
       scheduleSave(roomId);
@@ -733,10 +715,10 @@ io.on("connection", (socket) => {
       console.log(
         `✏️ ${getUserName(
           socket,
-          roomId,
-        )} drew ${tool}`,
+          roomId
+        )} drew ${tool}`
       );
-    },
+    }
   );
 
   /* ===================================================
@@ -750,16 +732,19 @@ io.on("connection", (socket) => {
         data?.roomId ||
         socket.currentRoom;
 
-      if (!roomId) return;
+      if (!roomId) {
+        return;
+      }
 
       const state =
         roomStates[roomId];
 
-      if (!state) return;
+      if (!state) {
+        return;
+      }
 
       if (
-        state.lines.length ===
-        0
+        state.lines.length === 0
       ) {
         return;
       }
@@ -769,23 +754,21 @@ io.on("connection", (socket) => {
 
       if (removed) {
         state.redoLines.push(
-          removed,
+          removed
         );
       }
 
-      broadcastRoomState(
-        roomId,
-      );
+      broadcastRoomState(roomId);
 
       scheduleSave(roomId);
 
       console.log(
         `↩️ ${getUserName(
           socket,
-          roomId,
-        )} undo`,
+          roomId
+        )} undo`
       );
-    },
+    }
   );
 
   /* ===================================================
@@ -799,16 +782,19 @@ io.on("connection", (socket) => {
         data?.roomId ||
         socket.currentRoom;
 
-      if (!roomId) return;
+      if (!roomId) {
+        return;
+      }
 
       const state =
         roomStates[roomId];
 
-      if (!state) return;
+      if (!state) {
+        return;
+      }
 
       if (
-        state.redoLines.length ===
-        0
+        state.redoLines.length === 0
       ) {
         return;
       }
@@ -818,23 +804,21 @@ io.on("connection", (socket) => {
 
       if (restored) {
         state.lines.push(
-          restored,
+          restored
         );
       }
 
-      broadcastRoomState(
-        roomId,
-      );
+      broadcastRoomState(roomId);
 
       scheduleSave(roomId);
 
       console.log(
         `↪️ ${getUserName(
           socket,
-          roomId,
-        )} redo`,
+          roomId
+        )} redo`
       );
-    },
+    }
   );
 
   /* ===================================================
@@ -848,12 +832,16 @@ io.on("connection", (socket) => {
         data?.roomId ||
         socket.currentRoom;
 
-      if (!roomId) return;
+      if (!roomId) {
+        return;
+      }
 
       const state =
         roomStates[roomId];
 
-      if (!state) return;
+      if (!state) {
+        return;
+      }
 
       state.lines = [];
       state.texts = [];
@@ -865,11 +853,11 @@ io.on("connection", (socket) => {
           lines: [],
           texts: [],
           redoLines: [],
-        },
+        }
       );
 
       io.to(roomId).emit(
-        "clear-board",
+        "clear-board"
       );
 
       scheduleSave(roomId);
@@ -877,14 +865,19 @@ io.on("connection", (socket) => {
       console.log(
         `🗑️ ${getUserName(
           socket,
-          roomId,
-        )} cleared board`,
+          roomId
+        )} cleared board`
       );
-    },
+    }
   );
 
   /* ===================================================
-     CODE CHANGE
+     LEGACY SOCKET CODE SYNC
+     
+     NOTE:
+     CodeEditor currently uses Yjs.
+     This event is kept for compatibility with
+     any older component that still uses Socket.IO.
   =================================================== */
 
   socket.on(
@@ -894,7 +887,9 @@ io.on("connection", (socket) => {
         data?.roomId ||
         socket.currentRoom;
 
-      if (!roomId) return;
+      if (!roomId) {
+        return;
+      }
 
       if (
         typeof data?.code !==
@@ -921,28 +916,23 @@ io.on("connection", (socket) => {
           data.language;
       }
 
-      /* -----------------------------------------------
-         IMPORTANT:
-         Send latest code to EVERYONE except nobody.
-         Sender also receives authoritative value.
-      ----------------------------------------------- */
-
       io.to(roomId).emit(
         "code-update",
         {
           code: state.code,
 
           language:
-            state.language,
-        },
+            state.language ||
+            "javascript",
+        }
       );
 
       scheduleSave(roomId);
 
       console.log(
-        `💻 Code updated in ${roomId}`,
+        `💻 Socket code updated in ${roomId}`
       );
-    },
+    }
   );
 
   /* ===================================================
@@ -978,7 +968,7 @@ io.on("connection", (socket) => {
         !state.texts.some(
           (item) =>
             item.id ===
-            text.id,
+            text.id
         )
       ) {
         state.texts.push(text);
@@ -988,9 +978,11 @@ io.on("connection", (socket) => {
         "add-text",
         {
           text,
-        },
+        }
       );
-    },
+
+      scheduleSave(roomId);
+    }
   );
 
   /* ===================================================
@@ -1014,13 +1006,15 @@ io.on("connection", (socket) => {
       const state =
         roomStates[roomId];
 
-      if (!state) return;
+      if (!state) {
+        return;
+      }
 
       state.texts =
         state.texts.filter(
           (text) =>
             text.id !==
-            data.textId,
+            data.textId
         );
 
       io.to(roomId).emit(
@@ -1028,9 +1022,11 @@ io.on("connection", (socket) => {
         {
           textId:
             data.textId,
-        },
+        }
       );
-    },
+
+      scheduleSave(roomId);
+    }
   );
 
   /* ===================================================
@@ -1055,19 +1051,22 @@ io.on("connection", (socket) => {
       const message =
         data.message.trim();
 
-      if (!message) return;
+      if (!message) {
+        return;
+      }
 
       const user =
         roomUsers[roomId]?.find(
           (member) =>
             member.socketId ===
-            socket.id,
+            socket.id
         );
 
       io.to(roomId).emit(
         "chat-message",
         {
-          id: `${socket.id}-${Date.now()}`,
+          id:
+            `${socket.id}-${Date.now()}`,
 
           socketId:
             socket.id,
@@ -1076,16 +1075,16 @@ io.on("connection", (socket) => {
             user?.name ||
             `User-${socket.id.slice(
               0,
-              4,
+              4
             )}`,
 
           message,
 
           timestamp:
             Date.now(),
-        },
+        }
       );
-    },
+    }
   );
 
   /* ===================================================
@@ -1099,7 +1098,9 @@ io.on("connection", (socket) => {
         data?.roomId ||
         socket.currentRoom;
 
-      if (!roomId) return;
+      if (!roomId) {
+        return;
+      }
 
       socket.leave(roomId);
 
@@ -1108,26 +1109,21 @@ io.on("connection", (socket) => {
           roomUsers[roomId].filter(
             (user) =>
               user.socketId !==
-              socket.id,
+              socket.id
           );
 
-        broadcastRoomUsers(
-          roomId,
-        );
+        broadcastRoomUsers(roomId);
 
         if (
-          roomUsers[roomId]
-            .length === 0
+          roomUsers[roomId].length ===
+          0
         ) {
-          delete roomUsers[
-            roomId
-          ];
+          delete roomUsers[roomId];
         }
       }
 
-      socket.currentRoom =
-        null;
-    },
+      socket.currentRoom = null;
+    }
   );
 
   /* ===================================================
@@ -1140,74 +1136,71 @@ io.on("connection", (socket) => {
       console.log(
         "🔴 Socket disconnected:",
         socket.id,
-        reason,
+        reason
       );
 
       const roomId =
         socket.currentRoom;
 
-      if (!roomId) return;
+      if (!roomId) {
+        return;
+      }
 
       if (roomUsers[roomId]) {
         roomUsers[roomId] =
           roomUsers[roomId].filter(
             (user) =>
               user.socketId !==
-              socket.id,
+              socket.id
           );
 
-        broadcastRoomUsers(
-          roomId,
-        );
+        broadcastRoomUsers(roomId);
 
         if (
-          roomUsers[roomId]
-            .length === 0
+          roomUsers[roomId].length ===
+          0
         ) {
-          delete roomUsers[
-            roomId
-          ];
+          delete roomUsers[roomId];
         }
       }
 
-      socket.currentRoom =
-        null;
-    },
+      socket.currentRoom = null;
+    }
   );
 });
 
 /* =====================================================
-   START
+   START SERVER
 ===================================================== */
 
 const startServer = async () => {
   try {
     if (!process.env.MONGO_URI) {
       throw new Error(
-        "MONGO_URI is missing in .env",
+        "MONGO_URI is missing in .env"
       );
     }
 
     await mongoose.connect(
-      process.env.MONGO_URI,
+      process.env.MONGO_URI
     );
 
     console.log(
-      "🍃 MongoDB connected successfully",
+      "🍃 MongoDB connected successfully"
     );
 
     server.listen(
       PORT,
       () => {
         console.log(
-          `🚀 SyncSpace running on http://localhost:${PORT}`,
+          `🚀 SyncSpace running on http://localhost:${PORT}`
         );
-      },
+      }
     );
   } catch (error) {
     console.error(
       "❌ Server startup failed:",
-      error.message,
+      error.message
     );
 
     process.exit(1);
@@ -1215,3 +1208,4 @@ const startServer = async () => {
 };
 
 startServer();
+

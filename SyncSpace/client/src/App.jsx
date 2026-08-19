@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { io } from "socket.io-client";
 
+import ResetPassword from "./ResetPassword";
 import Login from "./components/Auth/Login";
 import Register from "./components/Auth/Register";
 
@@ -21,13 +22,9 @@ import "./App.css";
 
 const socket = io("http://localhost:5000", {
   autoConnect: false,
-
   reconnection: true,
-
   reconnectionAttempts: Infinity,
-
   reconnectionDelay: 1000,
-
   reconnectionDelayMax: 5000,
 });
 
@@ -39,10 +36,50 @@ const DEFAULT_CODE =
   '// Welcome to SyncSpace\nconsole.log("Hello SyncSpace!");';
 
 /* =====================================================
+   ROOM ID
+===================================================== */
+
+const generateRoomId = () => {
+  const chars =
+    "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+  let result = "";
+
+  for (let i = 0; i < 6; i += 1) {
+    result += chars.charAt(
+      Math.floor(Math.random() * chars.length)
+    );
+  }
+
+  return `ROOM-${result}`;
+};
+
+/* =====================================================
+   SAVED USER
+===================================================== */
+
+const getSavedUser = () => {
+  try {
+    return JSON.parse(
+      localStorage.getItem("syncspaceUser") || "{}"
+    );
+  } catch {
+    return {};
+  }
+};
+
+/* =====================================================
    APP
 ===================================================== */
 
 function App() {
+  /* ===================================================
+     RESET PASSWORD
+  =================================================== */
+
+  const isResetPasswordPage =
+    window.location.pathname === "/reset-password";
+
   /* ===================================================
      AUTH
   =================================================== */
@@ -50,21 +87,21 @@ function App() {
   const [isAuthenticated, setIsAuthenticated] =
     useState(
       Boolean(
-        localStorage.getItem(
-          "syncspaceToken",
-        ),
-      ),
+        localStorage.getItem("syncspaceToken")
+      )
     );
 
   const [showRegister, setShowRegister] =
     useState(false);
+
+  const savedUser = getSavedUser();
 
   /* ===================================================
      CONNECTION
   =================================================== */
 
   const [status, setStatus] = useState(
-    "Waiting for authentication...",
+    "Waiting for authentication..."
   );
 
   const [isConnected, setIsConnected] =
@@ -74,48 +111,37 @@ function App() {
      USER
   =================================================== */
 
-  const getSavedUser = () => {
-    try {
-      return JSON.parse(
-        localStorage.getItem(
-          "syncspaceUser",
-        ) || "{}",
-      );
-    } catch {
-      return {};
-    }
-  };
-
-  const savedUser = getSavedUser();
-
-  const [userName, setUserName] =
-    useState(
-      sessionStorage.getItem(
-        "syncspaceName",
-      ) ||
-        savedUser?.name ||
-        "",
-    );
+  const [userName, setUserName] = useState(
+    sessionStorage.getItem("syncspaceName") ||
+      savedUser?.name ||
+      ""
+  );
 
   /* ===================================================
      ROOM
   =================================================== */
 
-  const [roomId, setRoomId] = useState(
-    sessionStorage.getItem(
-      "syncspaceRoom",
-    ) || "",
-  );
+  const savedRoom =
+    sessionStorage.getItem("syncspaceRoom") || "";
+
+  const [roomId, setRoomId] =
+    useState(savedRoom);
 
   const [joinedRoom, setJoinedRoom] =
-    useState(
-      sessionStorage.getItem(
-        "syncspaceRoom",
-      ) || "",
-    );
+    useState(savedRoom);
 
   const [participants, setParticipants] =
     useState([]);
+
+  /* ===================================================
+     DASHBOARD
+  =================================================== */
+
+  const [showDashboard, setShowDashboard] =
+    useState(!savedRoom);
+
+  const [inviteCopied, setInviteCopied] =
+    useState(false);
 
   /* ===================================================
      NAVIGATION
@@ -153,65 +179,65 @@ function App() {
     useState("javascript");
 
   /* ===================================================
-     LOGIN
+     AUTH HANDLERS
   =================================================== */
 
   const handleLogin = (data) => {
     if (data?.token) {
       localStorage.setItem(
         "syncspaceToken",
-        data.token,
+        data.token
       );
     }
 
     if (data?.user) {
       localStorage.setItem(
         "syncspaceUser",
-        JSON.stringify(data.user),
+        JSON.stringify(data.user)
       );
 
       if (data.user.name) {
         setUserName(data.user.name);
+
+        sessionStorage.setItem(
+          "syncspaceName",
+          data.user.name
+        );
       }
     }
 
     setShowRegister(false);
     setIsAuthenticated(true);
-
-    setStatus(
-      "Connecting to SyncSpace...",
-    );
+    setStatus("Connecting to SyncSpace...");
   };
-
-  /* ===================================================
-     REGISTER
-  =================================================== */
 
   const handleRegister = (data) => {
     if (data?.token) {
       localStorage.setItem(
         "syncspaceToken",
-        data.token,
+        data.token
       );
     }
 
     if (data?.user) {
       localStorage.setItem(
         "syncspaceUser",
-        JSON.stringify(data.user),
+        JSON.stringify(data.user)
       );
 
       if (data.user.name) {
         setUserName(data.user.name);
+
+        sessionStorage.setItem(
+          "syncspaceName",
+          data.user.name
+        );
       }
     }
 
     setShowRegister(false);
     setIsAuthenticated(true);
-
-    setStatus(
-      "Connecting to SyncSpace...",
-    );
+    setStatus("Connecting to SyncSpace...");
   };
 
   /* ===================================================
@@ -223,58 +249,82 @@ function App() {
       socket.disconnect();
     }
 
-    localStorage.removeItem(
-      "syncspaceToken",
-    );
+    localStorage.removeItem("syncspaceToken");
+    localStorage.removeItem("syncspaceUser");
 
-    localStorage.removeItem(
-      "syncspaceUser",
-    );
-
-    sessionStorage.removeItem(
-      "syncspaceName",
-    );
-
-    sessionStorage.removeItem(
-      "syncspaceRoom",
-    );
+    sessionStorage.removeItem("syncspaceName");
+    sessionStorage.removeItem("syncspaceRoom");
 
     setIsAuthenticated(false);
-
     setShowRegister(false);
 
     setUserName("");
-
     setRoomId("");
-
     setJoinedRoom("");
 
     setParticipants([]);
 
     setLines([]);
-
     setHistory([]);
-
     setRedoStack([]);
 
     setCode(DEFAULT_CODE);
-
     setLanguage("javascript");
 
     setActiveSection("code");
 
     setIsConnected(false);
 
-    setStatus(
-      "Waiting for authentication...",
-    );
+    setShowDashboard(true);
+
+    setStatus("Waiting for authentication...");
   };
 
   /* ===================================================
-     CONNECT
+     INVITE ROOM DETECTION
   =================================================== */
 
   useEffect(() => {
+    const params = new URLSearchParams(
+      window.location.search
+    );
+
+    const invitedRoom = params.get("room");
+
+    if (!invitedRoom) {
+      return;
+    }
+
+    const normalizedRoom =
+      invitedRoom.trim().toUpperCase();
+
+    if (!normalizedRoom) {
+      return;
+    }
+
+    setRoomId(normalizedRoom);
+    setShowDashboard(true);
+
+    window.history.replaceState(
+      {},
+      document.title,
+      window.location.pathname
+    );
+  }, []);
+
+  /* ===================================================
+     CONNECT SOCKET
+  =================================================== */
+
+  useEffect(() => {
+    if (isResetPasswordPage) {
+      if (socket.connected) {
+        socket.disconnect();
+      }
+
+      return;
+    }
+
     if (!isAuthenticated) {
       if (socket.connected) {
         socket.disconnect();
@@ -286,143 +336,107 @@ function App() {
     if (!socket.connected) {
       socket.connect();
     }
-  }, [isAuthenticated]);
+  }, [
+    isAuthenticated,
+    isResetPasswordPage,
+  ]);
 
   /* ===================================================
      SOCKET EVENTS
   =================================================== */
 
   useEffect(() => {
+    if (isResetPasswordPage) {
+      return undefined;
+    }
+
     const handleConnect = () => {
       console.log(
         "🟢 Connected:",
-        socket.id,
+        socket.id
       );
 
       setIsConnected(true);
-
       setStatus(
-        "Connected to SyncSpace Server",
+        "Connected to SyncSpace Server"
       );
 
       const savedRoom =
         sessionStorage.getItem(
-          "syncspaceRoom",
+          "syncspaceRoom"
         );
 
       const savedName =
         sessionStorage.getItem(
-          "syncspaceName",
+          "syncspaceName"
         );
 
-      if (
-        savedRoom &&
-        savedName
-      ) {
-        socket.emit(
-          "join-room",
-          {
-            roomId: savedRoom,
-            name: savedName,
-          },
-        );
+      if (savedRoom && savedName) {
+        socket.emit("join-room", {
+          roomId: savedRoom,
+          name: savedName,
+        });
 
         setRoomId(savedRoom);
-
         setJoinedRoom(savedRoom);
-
         setUserName(savedName);
+        setShowDashboard(false);
       }
     };
 
-    const handleDisconnect = (
-      reason,
-    ) => {
+    const handleDisconnect = (reason) => {
       console.log(
         "🔴 Disconnected:",
-        reason,
+        reason
       );
 
       setIsConnected(false);
-
       setStatus(
-        "Disconnected from Server",
+        "Disconnected from Server"
       );
 
       setParticipants([]);
     };
 
-    const handleConnectError = (
-      error,
-    ) => {
+    const handleConnectError = (error) => {
       console.error(
         "❌ Socket error:",
-        error,
+        error
       );
 
       setIsConnected(false);
-
       setStatus(
-        "Unable to connect to Server",
+        "Unable to connect to Server"
       );
     };
 
-    /* -----------------------------------------------
-       USERS
-    ----------------------------------------------- */
-
-    const handleRoomUsers = (
-      users,
-    ) => {
+    const handleRoomUsers = (users) => {
       if (Array.isArray(users)) {
         setParticipants(users);
       }
     };
 
-    /* -----------------------------------------------
-       COMPLETE ROOM STATE
-    ----------------------------------------------- */
+    const handleRoomState = (state) => {
+      if (!state) {
+        return;
+      }
 
-    const handleRoomState = (
-      state,
-    ) => {
-      console.log(
-        "📦 RECEIVED ROOM STATE:",
-        state,
-      );
-
-      if (!state) return;
-
-      if (
-        Array.isArray(state.lines)
-      ) {
+      if (Array.isArray(state.lines)) {
         setLines(state.lines);
       }
 
-      if (
-        typeof state.code ===
-        "string"
-      ) {
+      if (typeof state.code === "string") {
         setCode(state.code);
       }
 
       if (
-        typeof state.language ===
-        "string"
+        typeof state.language === "string"
       ) {
-        setLanguage(
-          state.language,
-        );
+        setLanguage(state.language);
       }
 
-      if (
-        Array.isArray(
-          state.redoLines,
-        )
-      ) {
-        setRedoStack(
-          state.redoLines,
-        );
+      if (Array.isArray(state.redoLines)) {
+        setRedoStack(state.redoLines);
       } else {
         setRedoStack([]);
       }
@@ -430,346 +444,426 @@ function App() {
       setHistory([]);
     };
 
-    /* -----------------------------------------------
-       DRAW
-    ----------------------------------------------- */
+    const handleDrawLine = (line) => {
+      if (!line?.id) {
+        return;
+      }
 
-    const handleDrawLine = (
-      line,
-    ) => {
-      if (!line?.id) return;
+      setLines((previous) => {
+        const exists = previous.some(
+          (item) => item.id === line.id
+        );
 
-      setLines(
-        (previous) => {
-          const exists =
-            previous.some(
-              (item) =>
-                item.id ===
-                line.id,
-            );
+        if (exists) {
+          return previous;
+        }
 
-          if (exists) {
-            return previous;
-          }
-
-          return [
-            ...previous,
-            line,
-          ];
-        },
-      );
+        return [...previous, line];
+      });
     };
 
-    /* -----------------------------------------------
-       CODE
-    ----------------------------------------------- */
-
-    const handleCodeUpdate = (
-      data,
-    ) => {
-      if (
-        typeof data?.code ===
-        "string"
-      ) {
+    const handleCodeUpdate = (data) => {
+      if (typeof data?.code === "string") {
         setCode(data.code);
       }
 
       if (
-        typeof data?.language ===
-        "string"
+        typeof data?.language === "string"
       ) {
-        setLanguage(
-          data.language,
-        );
+        setLanguage(data.language);
       }
     };
 
-    /* -----------------------------------------------
-       BOARD
-    ----------------------------------------------- */
+    const handleBoardState = (data) => {
+      if (!data) {
+        return;
+      }
 
-    const handleBoardState = (
-      data,
-    ) => {
-      if (!data) return;
-
-      if (
-        Array.isArray(data.lines)
-      ) {
+      if (Array.isArray(data.lines)) {
         setLines(data.lines);
       }
 
-      if (
-        Array.isArray(
-          data.redoLines,
-        )
-      ) {
-        setRedoStack(
-          data.redoLines,
-        );
+      if (Array.isArray(data.redoLines)) {
+        setRedoStack(data.redoLines);
       } else {
         setRedoStack([]);
       }
     };
 
-    /* -----------------------------------------------
-       REDO
-    ----------------------------------------------- */
-
-    const handleRedoState = (
-      data,
-    ) => {
+    const handleRedoState = (data) => {
       if (
-        Array.isArray(
-          data?.redoLines,
-        )
+        Array.isArray(data?.redoLines)
       ) {
-        setRedoStack(
-          data.redoLines,
+        setRedoStack(data.redoLines);
+      }
+    };
+
+    const handleClear = () => {
+      setLines([]);
+      setRedoStack([]);
+      setHistory([]);
+    };
+
+    const handleRoomError = (data) => {
+      alert(
+        data?.message || "Room error"
+      );
+    };
+
+    const handleNameChanged = (data) => {
+      if (
+        typeof data?.name === "string"
+      ) {
+        setUserName(data.name);
+
+        sessionStorage.setItem(
+          "syncspaceName",
+          data.name
         );
       }
     };
 
-    /* -----------------------------------------------
-       CLEAR
-    ----------------------------------------------- */
-
-    const handleClear = () => {
-      setLines([]);
-
-      setRedoStack([]);
-
-      setHistory([]);
-    };
-
-    /* -----------------------------------------------
-       ERRORS
-    ----------------------------------------------- */
-
-    const handleRoomError = (
-      data,
-    ) => {
-      alert(
-        data?.message ||
-          "Room error",
-      );
-    };
-
-    /* -----------------------------------------------
-       REGISTER
-    ----------------------------------------------- */
-
     socket.on(
       "connect",
-      handleConnect,
+      handleConnect
     );
 
     socket.on(
       "disconnect",
-      handleDisconnect,
+      handleDisconnect
     );
 
     socket.on(
       "connect_error",
-      handleConnectError,
+      handleConnectError
     );
 
     socket.on(
       "room-users",
-      handleRoomUsers,
+      handleRoomUsers
     );
 
     socket.on(
       "room-state",
-      handleRoomState,
+      handleRoomState
     );
 
     socket.on(
       "draw-line",
-      handleDrawLine,
+      handleDrawLine
     );
 
     socket.on(
       "code-update",
-      handleCodeUpdate,
+      handleCodeUpdate
     );
 
     socket.on(
       "board-state",
-      handleBoardState,
+      handleBoardState
     );
 
     socket.on(
       "redo-state",
-      handleRedoState,
+      handleRedoState
     );
 
     socket.on(
       "clear-board",
-      handleClear,
+      handleClear
     );
 
     socket.on(
       "room-error",
-      handleRoomError,
+      handleRoomError
+    );
+
+    socket.on(
+      "name-changed",
+      handleNameChanged
     );
 
     return () => {
       socket.off(
         "connect",
-        handleConnect,
+        handleConnect
       );
 
       socket.off(
         "disconnect",
-        handleDisconnect,
+        handleDisconnect
       );
 
       socket.off(
         "connect_error",
-        handleConnectError,
+        handleConnectError
       );
 
       socket.off(
         "room-users",
-        handleRoomUsers,
+        handleRoomUsers
       );
 
       socket.off(
         "room-state",
-        handleRoomState,
+        handleRoomState
       );
 
       socket.off(
         "draw-line",
-        handleDrawLine,
+        handleDrawLine
       );
 
       socket.off(
         "code-update",
-        handleCodeUpdate,
+        handleCodeUpdate
       );
 
       socket.off(
         "board-state",
-        handleBoardState,
+        handleBoardState
       );
 
       socket.off(
         "redo-state",
-        handleRedoState,
+        handleRedoState
       );
 
       socket.off(
         "clear-board",
-        handleClear,
+        handleClear
       );
 
       socket.off(
         "room-error",
-        handleRoomError,
+        handleRoomError
+      );
+
+      socket.off(
+        "name-changed",
+        handleNameChanged
       );
     };
-  }, []);
+  }, [isResetPasswordPage]);
+
+  /* ===================================================
+     CREATE ROOM
+  =================================================== */
+
+  const createRoom = (nameFromPanel) => {
+    const name =
+      (
+        nameFromPanel ||
+        userName
+      ).trim();
+
+    if (!name) {
+      alert(
+        "Please enter your name first."
+      );
+
+      return;
+    }
+
+    const newRoomId =
+      generateRoomId();
+
+    setUserName(name);
+    setRoomId(newRoomId);
+    setJoinedRoom(newRoomId);
+
+    sessionStorage.setItem(
+      "syncspaceName",
+      name
+    );
+
+    sessionStorage.setItem(
+      "syncspaceRoom",
+      newRoomId
+    );
+
+    setActiveSection("code");
+    setShowDashboard(true);
+
+    const joinCreatedRoom = () => {
+      socket.emit("join-room", {
+        roomId: newRoomId,
+        name,
+      });
+    };
+
+    if (!socket.connected) {
+      socket.once(
+        "connect",
+        joinCreatedRoom
+      );
+
+      socket.connect();
+    } else {
+      joinCreatedRoom();
+    }
+  };
 
   /* ===================================================
      JOIN ROOM
   =================================================== */
 
-  const joinRoom = () => {
+  const joinRoom = (
+    nameFromPanel,
+    roomFromPanel
+  ) => {
     const name =
-      userName.trim();
+      (
+        nameFromPanel ||
+        userName
+      ).trim();
 
     const room =
-      roomId.trim();
+      (
+        roomFromPanel ||
+        roomId
+      ).trim().toUpperCase();
 
     if (!name) {
       alert(
-        "Please enter your name.",
+        "Please enter your name first."
       );
+
       return;
     }
 
     if (!room) {
       alert(
-        "Please enter Room ID.",
+        "Please enter Room ID."
       );
+
       return;
     }
 
-    if (!socket.connected) {
-      alert(
-        "Server is not connected.",
-      );
-      return;
-    }
+    setUserName(name);
+    setRoomId(room);
+    setJoinedRoom(room);
 
-    console.log(
-      "🚀 JOIN:",
-      room,
-      name,
-    );
-
-    socket.emit(
-      "join-room",
-      {
-        roomId: room,
-        name,
-      },
+    sessionStorage.setItem(
+      "syncspaceName",
+      name
     );
 
     sessionStorage.setItem(
       "syncspaceRoom",
-      room,
+      room
     );
-
-    sessionStorage.setItem(
-      "syncspaceName",
-      name,
-    );
-
-    setRoomId(room);
-
-    setJoinedRoom(room);
-
-    setUserName(name);
 
     setActiveSection("code");
+    setShowDashboard(true);
+
+    const emitJoin = () => {
+      socket.emit("join-room", {
+        roomId: room,
+        name,
+      });
+    };
+
+    if (!socket.connected) {
+      socket.once(
+        "connect",
+        emitJoin
+      );
+
+      socket.connect();
+
+      return;
+    }
+
+    emitJoin();
   };
 
   /* ===================================================
      CHANGE NAME
   =================================================== */
 
-  const changeName = (
-    newName,
-  ) => {
+  const changeName = (newName) => {
     const name =
       newName.trim();
 
-    if (!name || !joinedRoom) {
+    if (!name) {
       return;
     }
 
-    socket.emit(
-      "change-name",
-      {
-        roomId:
-          joinedRoom,
-        name,
-      },
-    );
+    setUserName(name);
 
     sessionStorage.setItem(
       "syncspaceName",
-      name,
+      name
     );
 
-    setUserName(name);
+    if (
+      joinedRoom &&
+      socket.connected
+    ) {
+      socket.emit("change-name", {
+        roomId: joinedRoom,
+        name,
+      });
+    }
   };
 
   /* ===================================================
-     LEAVE
+     COPY ROOM ID
+  =================================================== */
+
+  const copyRoomId = async () => {
+    if (!joinedRoom) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(
+        joinedRoom
+      );
+
+      alert("Room ID copied!");
+    } catch {
+      alert(
+        `Room ID:\n${joinedRoom}`
+      );
+    }
+  };
+
+  /* ===================================================
+     COPY INVITE LINK
+  =================================================== */
+
+  const copyInviteLink = async () => {
+    if (!joinedRoom) {
+      return;
+    }
+
+    const inviteUrl =
+      `${window.location.origin}/?room=${encodeURIComponent(
+        joinedRoom
+      )}`;
+
+    try {
+      await navigator.clipboard.writeText(
+        inviteUrl
+      );
+
+      setInviteCopied(true);
+
+      setTimeout(() => {
+        setInviteCopied(false);
+      }, 2000);
+    } catch {
+      window.prompt(
+        "Copy this invite link:",
+        inviteUrl
+      );
+    }
+  };
+
+  /* ===================================================
+     LEAVE ROOM
   =================================================== */
 
   const leaveRoom = () => {
@@ -777,42 +871,35 @@ function App() {
       joinedRoom &&
       socket.connected
     ) {
-      socket.emit(
-        "leave-room",
-        {
-          roomId:
-            joinedRoom,
-        },
-      );
+      socket.emit("leave-room", {
+        roomId: joinedRoom,
+      });
     }
 
     sessionStorage.removeItem(
-      "syncspaceRoom",
+      "syncspaceRoom"
     );
 
     sessionStorage.removeItem(
-      "syncspaceName",
+      "syncspaceName"
     );
 
     setJoinedRoom("");
-
     setRoomId("");
-
     setUserName("");
 
     setParticipants([]);
 
     setLines([]);
-
     setHistory([]);
-
     setRedoStack([]);
 
     setCode(DEFAULT_CODE);
-
     setLanguage("javascript");
 
     setActiveSection("code");
+
+    setShowDashboard(true);
   };
 
   /* ===================================================
@@ -820,38 +907,42 @@ function App() {
   =================================================== */
 
   const handleNavigation = (
-    section,
+    section
   ) => {
     if (!joinedRoom) {
       alert(
-        "Please join a workspace first.",
+        "Please join a workspace first."
       );
+
       return;
     }
 
+    setShowDashboard(false);
     setActiveSection(section);
   };
 
   /* ===================================================
-     AUTH
+     RESET PASSWORD
+  =================================================== */
+
+  if (isResetPasswordPage) {
+    return <ResetPassword />;
+  }
+
+  /* ===================================================
+     AUTH SCREEN
   =================================================== */
 
   if (!isAuthenticated) {
     if (showRegister) {
       return (
         <Register
-          onRegister={
-            handleRegister
-          }
+          onRegister={handleRegister}
           onLogin={() =>
-            setShowRegister(
-              false,
-            )
+            setShowRegister(false)
           }
           onSwitch={() =>
-            setShowRegister(
-              false,
-            )
+            setShowRegister(false)
           }
         />
       );
@@ -859,72 +950,239 @@ function App() {
 
     return (
       <Login
-        onLogin={
-          handleLogin
-        }
+        onLogin={handleLogin}
         onRegister={() =>
-          setShowRegister(
-            true,
-          )
+          setShowRegister(true)
         }
         onSwitch={() =>
-          setShowRegister(
-            true,
-          )
+          setShowRegister(true)
         }
       />
     );
   }
 
   /* ===================================================
+     DASHBOARD
+  =================================================== */
+
+  const renderDashboard = () => {
+    /* =================================================
+       NO ROOM
+       
+       IMPORTANT:
+       RoomPanel is the ONLY place where Create/Join
+       Room UI exists.
+    ================================================= */
+
+    if (!joinedRoom) {
+      return (
+        <RoomPanel
+          roomId={roomId}
+          setRoomId={setRoomId}
+          joinedRoom={joinedRoom}
+          onCreateRoom={createRoom}
+          onJoinRoom={joinRoom}
+          userName={userName}
+          setUserName={setUserName}
+        />
+      );
+    }
+
+    /* =================================================
+       ACTIVE ROOM
+    ================================================= */
+
+    return (
+      <div className="room-dashboard active-room-dashboard">
+        <div className="room-dashboard-header active-room-header">
+          <div>
+            <div className="room-dashboard-badge">
+              🟢 ROOM ACTIVE
+            </div>
+
+            <h1>{joinedRoom}</h1>
+
+            <p>
+              Your SyncSpace workspace is
+              live. Share the Room ID with
+              your team.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            className="dashboard-primary-button"
+            onClick={() => {
+              setShowDashboard(false);
+              setActiveSection("code");
+            }}
+          >
+            Open Workspace →
+          </button>
+        </div>
+
+        {/* ROOM + INVITE */}
+
+        <div className="room-dashboard-grid">
+          <div className="room-dashboard-card">
+            <div className="dashboard-card-icon">
+              🔑
+            </div>
+
+            <h2>Room ID</h2>
+
+            <div className="room-id-display">
+              {joinedRoom}
+            </div>
+
+            <button
+              type="button"
+              className="dashboard-secondary-button"
+              onClick={copyRoomId}
+            >
+              📋 Copy Room ID
+            </button>
+          </div>
+
+          <div className="room-dashboard-card create-room-card">
+            <div className="dashboard-card-icon">
+              🔗
+            </div>
+
+            <h2>Invite Teammates</h2>
+
+            <p>
+              Share this link with your
+              collaborators.
+            </p>
+
+            <button
+              type="button"
+              className="dashboard-primary-button"
+              onClick={copyInviteLink}
+            >
+              {inviteCopied
+                ? "✓ Invite Link Copied"
+                : "🔗 Copy Invite Link"}
+            </button>
+          </div>
+        </div>
+
+        {/* USER */}
+
+        <div className="dashboard-user-card">
+          <span>👤</span>
+
+          <div>
+            <small>
+              COLLABORATING AS
+            </small>
+
+            <strong>
+              {userName ||
+                "Collaborator"}
+            </strong>
+          </div>
+        </div>
+
+        {/* STATS */}
+
+        <div className="dashboard-stats">
+          <div className="dashboard-stat-card">
+            <span>👥</span>
+
+            <div>
+              <small>
+                PARTICIPANTS
+              </small>
+
+              <strong>
+                {participants.length}
+              </strong>
+            </div>
+          </div>
+
+          <div className="dashboard-stat-card">
+            <span>💻</span>
+
+            <div>
+              <small>
+                LANGUAGE
+              </small>
+
+              <strong>
+                {language}
+              </strong>
+            </div>
+          </div>
+
+          <div className="dashboard-stat-card">
+            <span>
+              {isConnected
+                ? "🟢"
+                : "🔴"}
+            </span>
+
+            <div>
+              <small>
+                SERVER
+              </small>
+
+              <strong>
+                {isConnected
+                  ? "Online"
+                  : "Offline"}
+              </strong>
+            </div>
+          </div>
+        </div>
+
+        {/* CONNECTION */}
+
+        <div className="dashboard-connected-card">
+          <div className="dashboard-connected-icon">
+            🟢
+          </div>
+
+          <div>
+            <strong>
+              Connected to workspace
+            </strong>
+
+            <p>
+              Real-time collaboration is
+              active.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  /* ===================================================
      CONTENT
   =================================================== */
 
   const renderContent = () => {
-    if (!joinedRoom) {
-      return (
-        <div className="workspace-empty">
-          <div className="workspace-empty-icon">
-            🚀
-          </div>
-
-          <h2>
-            Join a workspace
-          </h2>
-
-          <p>
-            Enter your name and
-            Room ID to start
-            collaborating.
-          </p>
-        </div>
-      );
+    if (
+      showDashboard ||
+      !joinedRoom
+    ) {
+      return renderDashboard();
     }
 
-    switch (
-      activeSection
-    ) {
+    switch (activeSection) {
       case "code":
         return (
           <ErrorBoundary>
             <CodeEditor
               code={code}
               setCode={setCode}
-              language={
-                language
-              }
-              setLanguage={
-                setLanguage
-              }
-              joinedRoom={
-                joinedRoom
-              }
-              socket={
-                socket
-              }
-              userName={
-                userName
-              }
+              language={language}
+              setLanguage={setLanguage}
+              joinedRoom={joinedRoom}
+              socket={socket}
+              userName={userName}
             />
           </ErrorBoundary>
         );
@@ -933,155 +1191,166 @@ function App() {
         return (
           <ErrorBoundary>
             <Whiteboard
-              joinedRoom={
-                joinedRoom
-              }
+              joinedRoom={joinedRoom}
               lines={lines}
-              setLines={
-                setLines
-              }
+              setLines={setLines}
               color={color}
-              setColor={
-                setColor
-              }
-              brushSize={
-                brushSize
-              }
-              setBrushSize={
-                setBrushSize
-              }
-              socket={
-                socket
-              }
-              history={
-                history
-              }
-              setHistory={
-                setHistory
-              }
-              redoStack={
-                redoStack
-              }
-              setRedoStack={
-                setRedoStack
-              }
+              setColor={setColor}
+              brushSize={brushSize}
+              setBrushSize={setBrushSize}
+              socket={socket}
+              history={history}
+              setHistory={setHistory}
+              redoStack={redoStack}
+              setRedoStack={setRedoStack}
             />
           </ErrorBoundary>
         );
 
       case "chat":
         return (
-          <Chat
-            joinedRoom={
-              joinedRoom
-            }
-            socket={
-              socket
-            }
-          />
+          <ErrorBoundary>
+            <Chat
+              joinedRoom={joinedRoom}
+              socket={socket}
+            />
+          </ErrorBoundary>
         );
 
       case "team":
         return (
-          <Participants
-            joinedRoom={
-              joinedRoom
-            }
-            participants={
-              participants
-            }
-            currentSocketId={
-              socket.id
-            }
-          />
+          <ErrorBoundary>
+            <Participants
+              joinedRoom={joinedRoom}
+              participants={participants}
+              currentSocketId={socket.id}
+            />
+          </ErrorBoundary>
         );
 
       default:
-        return null;
+        return renderDashboard();
     }
   };
 
   /* ===================================================
-     SIDEBAR
+     NAVIGATION BUTTON
   =================================================== */
 
   const navigationButton = (
     section,
     icon,
-    label,
+    label
   ) => (
     <button
       key={section}
       type="button"
       className={
-        activeSection ===
-        section
+        activeSection === section &&
+        !showDashboard
           ? "workspace-nav-button workspace-nav-active"
           : "workspace-nav-button"
       }
       onClick={() =>
-        handleNavigation(
-          section,
-        )
+        handleNavigation(section)
       }
     >
       <span className="workspace-nav-icon">
         {icon}
       </span>
 
-      <span>
-        {label}
-      </span>
+      <span>{label}</span>
     </button>
   );
+
+  /* ===================================================
+     SIDEBAR
+  =================================================== */
 
   const sidebar = (
     <>
       <div className="workspace-brand">
-        🚀 SyncSpace
+        <span className="workspace-brand-icon">
+          🚀
+        </span>
+
+        <span>SyncSpace</span>
       </div>
 
-      <div className="workspace-room-name">
-        📁{" "}
-        {joinedRoom ||
-          "No Room"}
-      </div>
+      <button
+        type="button"
+        className="workspace-room-name"
+        onClick={() =>
+          setShowDashboard(true)
+        }
+      >
+        <span>📁</span>
 
-      <div className="workspace-label">
-        Navigation
-      </div>
+        <span>
+          {joinedRoom ||
+            "Dashboard"}
+        </span>
+      </button>
 
-      {navigationButton(
-        "code",
-        "💻",
-        "Code",
-      )}
+      {joinedRoom && (
+        <>
+          <div className="workspace-label">
+            Workspace
+          </div>
 
-      {navigationButton(
-        "whiteboard",
-        "🖍",
-        "Whiteboard",
-      )}
+          <button
+            type="button"
+            className={
+              showDashboard
+                ? "workspace-nav-button workspace-nav-active"
+                : "workspace-nav-button"
+            }
+            onClick={() =>
+              setShowDashboard(true)
+            }
+          >
+            <span className="workspace-nav-icon">
+              🏠
+            </span>
 
-      {navigationButton(
-        "chat",
-        "💬",
-        "Chat",
-      )}
+            <span>Dashboard</span>
+          </button>
 
-      {navigationButton(
-        "team",
-        "👥",
-        "Team",
+          <div className="workspace-label">
+            Navigation
+          </div>
+
+          {navigationButton(
+            "code",
+            "💻",
+            "Code"
+          )}
+
+          {navigationButton(
+            "whiteboard",
+            "🖍",
+            "Whiteboard"
+          )}
+
+          {navigationButton(
+            "chat",
+            "💬",
+            "Chat"
+          )}
+
+          {navigationButton(
+            "team",
+            "👥",
+            "Team"
+          )}
+        </>
       )}
 
       {joinedRoom && (
         <button
           type="button"
           className="leave-workspace-button"
-          onClick={
-            leaveRoom
-          }
+          onClick={leaveRoom}
         >
           🚪 Leave Workspace
         </button>
@@ -1089,38 +1358,12 @@ function App() {
 
       <button
         type="button"
-        className="leave-workspace-button"
-        onClick={
-          logout
-        }
+        className="logout-workspace-button"
+        onClick={logout}
       >
         🔐 Logout
       </button>
     </>
-  );
-
-  const roomPanel = (
-    <RoomPanel
-      roomId={roomId}
-      setRoomId={
-        setRoomId
-      }
-      joinedRoom={
-        joinedRoom
-      }
-      onJoinRoom={
-        joinRoom
-      }
-      userName={
-        userName
-      }
-      setUserName={
-        setUserName
-      }
-      onChangeName={
-        changeName
-      }
-    />
   );
 
   /* ===================================================
@@ -1131,30 +1374,17 @@ function App() {
     <ErrorBoundary>
       <div className="syncspace-app">
         <DisconnectBanner
-          status={
-            status
-          }
-          socket={
-            socket
-          }
+          status={status}
+          socket={socket}
         />
 
         <WorkspaceLayout
-          status={
-            status
-          }
-          joinedRoom={
-            joinedRoom
-          }
-          participants={
-            participants
-          }
-          sidebar={
-            sidebar
-          }
-          roomPanel={
-            roomPanel
-          }
+          status={status}
+          joinedRoom={joinedRoom}
+          participants={participants}
+          sidebar={sidebar}
+          roomPanel={null}
+          onLeave={leaveRoom}
         >
           {renderContent()}
         </WorkspaceLayout>
