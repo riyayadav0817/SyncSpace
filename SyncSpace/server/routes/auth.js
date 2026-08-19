@@ -37,7 +37,6 @@ const createTransporter = () => {
 
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
-
     port: Number(process.env.SMTP_PORT),
 
     secure:
@@ -90,10 +89,6 @@ router.post("/register", async (req, res) => {
       password,
     } = req.body || {};
 
-    /* -----------------------------------------------
-       VALIDATION
-    ------------------------------------------------ */
-
     if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
@@ -133,9 +128,7 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    /* -----------------------------------------------
-       CHECK EXISTING USER
-    ------------------------------------------------ */
+    /* Check existing user */
 
     const existingUser = await User.findOne({
       email: normalizedEmail,
@@ -149,18 +142,14 @@ router.post("/register", async (req, res) => {
       });
     }
 
-    /* -----------------------------------------------
-       HASH PASSWORD
-    ------------------------------------------------ */
+    /* Hash password */
 
     const hashedPassword = await bcrypt.hash(
       cleanPassword,
       12
     );
 
-    /* -----------------------------------------------
-       CREATE USER
-    ------------------------------------------------ */
+    /* Create user */
 
     const user = await User.create({
       name: cleanName,
@@ -168,9 +157,7 @@ router.post("/register", async (req, res) => {
       password: hashedPassword,
     });
 
-    /* -----------------------------------------------
-       CREATE JWT
-    ------------------------------------------------ */
+    /* Create JWT */
 
     const token = createToken(user);
 
@@ -189,8 +176,6 @@ router.post("/register", async (req, res) => {
       "❌ Register error:",
       error
     );
-
-    /* Mongo duplicate email protection */
 
     if (error?.code === 11000) {
       return res.status(409).json({
@@ -218,10 +203,6 @@ router.post("/login", async (req, res) => {
       password,
     } = req.body || {};
 
-    /* -----------------------------------------------
-       VALIDATION
-    ------------------------------------------------ */
-
     if (!email || !password) {
       return res.status(400).json({
         success: false,
@@ -236,9 +217,7 @@ router.post("/login", async (req, res) => {
 
     const cleanPassword = String(password);
 
-    /* -----------------------------------------------
-       FIND USER
-    ------------------------------------------------ */
+    /* Find user */
 
     const user = await User.findOne({
       email: normalizedEmail,
@@ -256,9 +235,7 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    /* -----------------------------------------------
-       CHECK PASSWORD
-    ------------------------------------------------ */
+    /* Check password */
 
     const passwordMatches =
       await bcrypt.compare(
@@ -278,9 +255,7 @@ router.post("/login", async (req, res) => {
       });
     }
 
-    /* -----------------------------------------------
-       CREATE TOKEN
-    ------------------------------------------------ */
+    /* Create token */
 
     const token = createToken(user);
 
@@ -369,10 +344,10 @@ router.post(
         .trim()
         .toLowerCase();
 
-      /* -----------------------------------------------
-         GENERIC RESPONSE
-         Prevents email enumeration.
-      ------------------------------------------------ */
+      /*
+        Generic response prevents
+        email enumeration.
+      */
 
       const genericResponse = {
         success: true,
@@ -386,9 +361,7 @@ router.post(
         );
       }
 
-      /* -----------------------------------------------
-         FIND USER
-      ------------------------------------------------ */
+      /* Find user */
 
       const user = await User.findOne({
         email,
@@ -400,9 +373,7 @@ router.post(
         );
       }
 
-      /* -----------------------------------------------
-         GENERATE RESET TOKEN
-      ------------------------------------------------ */
+      /* Generate reset token */
 
       const resetToken =
         crypto.randomBytes(32).toString("hex");
@@ -415,7 +386,9 @@ router.post(
 
       const expiresAt = new Date(
         Date.now() +
-          RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000
+          RESET_TOKEN_EXPIRY_MINUTES *
+            60 *
+            1000
       );
 
       user.resetPasswordTokenHash =
@@ -426,9 +399,7 @@ router.post(
 
       await user.save();
 
-      /* -----------------------------------------------
-         CREATE MAILER
-      ------------------------------------------------ */
+      /* Create transporter */
 
       const transporter =
         createTransporter();
@@ -441,13 +412,11 @@ router.post(
         return res.status(500).json({
           success: false,
           message:
-            "Email service is not configured. Check SMTP settings in .env.",
+            "Email service is not configured. Check SMTP settings in Render.",
         });
       }
 
-      /* -----------------------------------------------
-         RESET URL
-      ------------------------------------------------ */
+      /* Reset URL */
 
       const resetUrl =
         `${FRONTEND_URL}/reset-password` +
@@ -458,9 +427,7 @@ router.post(
           email
         )}`;
 
-      /* -----------------------------------------------
-         SEND EMAIL
-      ------------------------------------------------ */
+      /* Send email */
 
       await transporter.sendMail({
         from:
@@ -579,10 +546,6 @@ router.post(
         password,
       } = req.body || {};
 
-      /* -----------------------------------------------
-         VALIDATION
-      ------------------------------------------------ */
-
       if (
         !email ||
         !token ||
@@ -614,9 +577,7 @@ router.post(
       const cleanToken =
         String(token).trim();
 
-      /* -----------------------------------------------
-         HASH TOKEN
-      ------------------------------------------------ */
+      /* Hash reset token */
 
       const tokenHash =
         crypto
@@ -624,9 +585,7 @@ router.post(
           .update(cleanToken)
           .digest("hex");
 
-      /* -----------------------------------------------
-         FIND USER WITH VALID TOKEN
-      ------------------------------------------------ */
+      /* Find user */
 
       const user =
         await User.findOne({
@@ -648,9 +607,7 @@ router.post(
         });
       }
 
-      /* -----------------------------------------------
-         HASH NEW PASSWORD
-      ------------------------------------------------ */
+      /* Hash new password */
 
       user.password =
         await bcrypt.hash(
@@ -658,9 +615,7 @@ router.post(
           12
         );
 
-      /* -----------------------------------------------
-         CLEAR RESET TOKEN
-      ------------------------------------------------ */
+      /* Clear reset token */
 
       user.resetPasswordTokenHash =
         null;
@@ -712,4 +667,3 @@ function escapeHtml(value) {
 ===================================================== */
 
 module.exports = router;
-
