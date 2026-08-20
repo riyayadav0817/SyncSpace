@@ -15,8 +15,10 @@ import {
   subscribeToAwareness,
 } from "../collaboration/awareness";
 
-const API_URL = "http://localhost:5000";
-
+const YJS_SERVER_URL =
+  import.meta.env.VITE_YJS_SERVER_URL ||
+  "ws://localhost:1234";
+  
 function CodeEditor({
   code,
   setCode,

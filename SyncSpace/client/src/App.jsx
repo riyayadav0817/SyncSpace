@@ -20,7 +20,7 @@ import "./App.css";
    SOCKET
 ===================================================== */
 
-const socket = io("http://localhost:5000", {
+const socket = io("https://syncspace-8lew.onrender.com", {
   autoConnect: false,
   reconnection: true,
   reconnectionAttempts: Infinity,

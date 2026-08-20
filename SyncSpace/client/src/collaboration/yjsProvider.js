@@ -2,8 +2,10 @@
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 
-const YJS_SERVER_URL = "ws://localhost:1234";
-
+const YJS_SERVER_URL =
+  import.meta.env.VITE_YJS_SERVER_URL ||
+  "ws://localhost:1234";
+  
 export function createRoomProvider(
   roomId,
   user = {}
