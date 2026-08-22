@@ -17,7 +17,7 @@ const JWT_SECRET =
   process.env.JWT_SECRET || "syncspace-dev-secret";
 
 const FRONTEND_URL =
-  process.env.FRONTEND_URL || "http://localhost:5173";
+  process.env.FRONTEND_URL || "https://syncspace-1-ckob.onrender.com";
 
 const RESET_TOKEN_EXPIRY_MINUTES = 15;
 
