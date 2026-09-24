@@ -25,6 +25,9 @@ const transporter = nodemailer.createTransport({
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+  // Render's network can't route Gmail SMTP over IPv6 (causes ENETUNREACH).
+  // Forcing IPv4 fixes it.
+  family: 4,
 });
  
 function escapeHtml(value) {
