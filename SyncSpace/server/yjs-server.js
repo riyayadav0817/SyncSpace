@@ -1,152 +1,189 @@
 require("dotenv").config();
 
 const http = require("http");
-const mongoose = require("mongoose");
 const { WebSocketServer } = require("ws");
 const Y = require("yjs");
-const { setupWSConnection } = require("y-websocket");
+const yUtils = require("y-websocket/bin/utils");
 
-const Workspace = require("./models/Workspace");
+const { MongodbPersistence } = require("y-mongodb-provider");
 
-const PORT = process.env.YJS_PORT || 1234;
+// =====================================================
+// CONFIG
+// =====================================================
 
-const server = http.createServer();
+const PORT =
+  Number(process.env.PORT) ||
+  Number(process.env.YJS_PORT) ||
+  1234;
+
+const HOST =
+  process.env.HOST ||
+  "0.0.0.0";
+
+const MONGO_URI =
+  process.env.MONGO_URI;
+
+if (!MONGO_URI) {
+  console.error("❌ MONGO_URI is missing.");
+  process.exit(1);
+}
+
+// =====================================================
+// HTTP SERVER
+// =====================================================
+
+const server = http.createServer((req, res) => {
+  // Health check
+  if (req.url === "/health") {
+    res.writeHead(200, {
+      "Content-Type": "application/json",
+    });
+
+    res.end(
+      JSON.stringify({
+        success: true,
+        service: "syncspace-yjs",
+        status: "online",
+      })
+    );
+
+    return;
+  }
+
+  res.writeHead(200, {
+    "Content-Type": "text/plain",
+  });
+
+  res.end("SyncSpace Yjs server running.");
+});
+
+// =====================================================
+// WEBSOCKET SERVER
+// =====================================================
 
 const wss = new WebSocketServer({
   noServer: true,
 });
 
 // =====================================================
-// YJS DOCUMENT CACHE
+// MONGODB YJS PERSISTENCE
 // =====================================================
 
-const docs = new Map();
+const persistence =
+  new MongodbPersistence(
+    MONGO_URI,
+    {
+      collectionName:
+        "syncspace-yjs-transactions",
 
-const getDocument = (roomId) => {
-  if (!docs.has(roomId)) {
-    docs.set(roomId, new Y.Doc());
-  }
+      flushSize: 100,
 
-  return docs.get(roomId);
-};
+      multipleCollections: false,
+    }
+  );
 
 // =====================================================
-// LOAD YJS STATE FROM MONGODB
+// CONNECT YJS PERSISTENCE TO Y-WEBSOCKET
 // =====================================================
 
-const loadYjsState = async (roomId) => {
-  try {
-    const workspace = await Workspace.findOne({
-      roomId,
-    }).lean();
+yUtils.setPersistence({
+  // ---------------------------------------------------
+  // LOAD DOCUMENT
+  // ---------------------------------------------------
 
-    if (
-      workspace &&
-      workspace.yjsState
-    ) {
-      const doc = getDocument(roomId);
-
-      const update = Buffer.from(
-        workspace.yjsState
+  bindState: async (
+    docName,
+    ydoc
+  ) => {
+    try {
+      console.log(
+        `📥 Loading Yjs room: ${docName}`
       );
 
-      Y.applyUpdate(
-        doc,
-        new Uint8Array(update)
+      const persistedYdoc =
+        await persistence.getYDoc(
+          docName
+        );
+
+      const persistedState =
+        Y.encodeStateAsUpdate(
+          persistedYdoc
+        );
+
+      if (
+        persistedState.length > 0
+      ) {
+        Y.applyUpdate(
+          ydoc,
+          persistedState
+        );
+      }
+
+      // Persist every incremental update.
+      ydoc.on(
+        "update",
+        async (update) => {
+          try {
+            await persistence.storeUpdate(
+              docName,
+              update
+            );
+
+            console.log(
+              `💾 Yjs update saved: ${docName}`
+            );
+          } catch (error) {
+            console.error(
+              `❌ Yjs update save failed (${docName}):`,
+              error.message
+            );
+          }
+        }
       );
 
       console.log(
-        `📦 Yjs state loaded: ${roomId}`
+        `✅ Yjs room ready: ${docName}`
+      );
+    } catch (error) {
+      console.error(
+        `❌ Yjs bindState failed (${docName}):`,
+        error.message
       );
 
-      return doc;
+      throw error;
     }
+  },
 
-    console.log(
-      `🆕 New Yjs document: ${roomId}`
-    );
+  // ---------------------------------------------------
+  // DOCUMENT CLOSED
+  // ---------------------------------------------------
 
-    return getDocument(roomId);
-  } catch (error) {
-    console.error(
-      "❌ Yjs MongoDB load error:",
-      error.message
-    );
-
-    return getDocument(roomId);
-  }
-};
-
-// =====================================================
-// SAVE YJS STATE
-// =====================================================
-
-const saveYjsState = async (roomId, doc) => {
-  try {
-    const update =
-      Y.encodeStateAsUpdate(doc);
-
-    await Workspace.findOneAndUpdate(
-      {
-        roomId,
-      },
-      {
-        $set: {
-          roomId,
-          yjsState: Buffer.from(update),
-        },
-      },
-      {
-        upsert: true,
-        new: true,
-        setDefaultsOnInsert: true,
-      }
-    );
-
-    console.log(
-      `💾 Yjs saved: ${roomId} (${update.length} bytes)`
-    );
-  } catch (error) {
-    console.error(
-      "❌ Yjs MongoDB save error:",
-      error.message
-    );
-  }
-};
-
-// =====================================================
-// DEBOUNCED PERSISTENCE
-// =====================================================
-
-const saveTimers = new Map();
-
-const scheduleYjsSave = (
-  roomId,
-  doc
-) => {
-  if (saveTimers.has(roomId)) {
-    clearTimeout(
-      saveTimers.get(roomId)
-    );
-  }
-
-  const timer = setTimeout(
-    async () => {
-      saveTimers.delete(roomId);
-
-      await saveYjsState(
-        roomId,
-        doc
+  writeState: async (
+    docName,
+    ydoc
+  ) => {
+    try {
+      console.log(
+        `💾 Finalizing Yjs room: ${docName}`
       );
-    },
-    1000
-  );
 
-  saveTimers.set(
-    roomId,
-    timer
-  );
-};
+      await persistence.flushDocument(
+        docName
+      );
+
+      console.log(
+        `✅ Yjs room persisted: ${docName}`
+      );
+    } catch (error) {
+      console.error(
+        `❌ Yjs final save failed (${docName}):`,
+        error.message
+      );
+
+      throw error;
+    }
+  },
+});
 
 // =====================================================
 // WEBSOCKET CONNECTION
@@ -154,52 +191,9 @@ const scheduleYjsSave = (
 
 wss.on(
   "connection",
-  async (ws, request) => {
+  (ws, request) => {
     try {
-      const url = new URL(
-        request.url,
-        `http://${request.headers.host}`
-      );
-
-      const roomId =
-        url.pathname
-          .replace(/^\/+/, "")
-          .trim();
-
-      if (!roomId) {
-        ws.close(
-          1008,
-          "Room ID required"
-        );
-
-        return;
-      }
-
-      const doc =
-        await loadYjsState(
-          roomId
-        );
-
-      // Listen for every Yjs update.
-      const updateHandler = (
-        update,
-        origin
-      ) => {
-        // y-websocket handles broadcasting.
-        // We only persist the CRDT state.
-        scheduleYjsSave(
-          roomId,
-          doc
-        );
-      };
-
-      doc.on(
-        "update",
-        updateHandler
-      );
-
-      // Attach Y-WebSocket connection.
-      setupWSConnection(
+      yUtils.setupWSConnection(
         ws,
         request,
         {
@@ -208,37 +202,12 @@ wss.on(
       );
 
       console.log(
-        `🟢 Yjs client connected: ${roomId}`
-      );
-
-      ws.on(
-        "close",
-        async () => {
-          try {
-            await saveYjsState(
-              roomId,
-              doc
-            );
-
-            doc.off(
-              "update",
-              updateHandler
-            );
-
-            console.log(
-              `🔴 Yjs client disconnected: ${roomId}`
-            );
-          } catch (error) {
-            console.error(
-              "❌ Yjs close save error:",
-              error.message
-            );
-          }
-        }
+        "🟢 Yjs WebSocket connected:",
+        request.url
       );
     } catch (error) {
       console.error(
-        "❌ Yjs connection error:",
+        "❌ Yjs WebSocket connection error:",
         error.message
       );
 
@@ -249,11 +218,30 @@ wss.on(
         );
       } catch {}
     }
+
+    ws.on(
+      "close",
+      () => {
+        console.log(
+          "🔴 Yjs WebSocket disconnected"
+        );
+      }
+    );
+
+    ws.on(
+      "error",
+      (error) => {
+        console.error(
+          "❌ Yjs WebSocket error:",
+          error.message
+        );
+      }
+    );
   }
 );
 
 // =====================================================
-// HTTP UPGRADE
+// HTTP → WEBSOCKET UPGRADE
 // =====================================================
 
 server.on(
@@ -263,52 +251,67 @@ server.on(
     socket,
     head
   ) => {
-    wss.handleUpgrade(
-      request,
-      socket,
-      head,
-      (ws) => {
-        wss.emit(
-          "connection",
-          ws,
-          request
-        );
-      }
-    );
+    try {
+      wss.handleUpgrade(
+        request,
+        socket,
+        head,
+        (ws) => {
+          wss.emit(
+            "connection",
+            ws,
+            request
+          );
+        }
+      );
+    } catch (error) {
+      console.error(
+        "❌ WebSocket upgrade failed:",
+        error.message
+      );
+
+      socket.destroy();
+    }
   }
 );
 
 // =====================================================
-// START
+// GRACEFUL SHUTDOWN
 // =====================================================
 
-const start = async () => {
+const shutdown = async (
+  signal
+) => {
+  console.log(
+    `\n🛑 ${signal} received. Shutting down Yjs server...`
+  );
+
   try {
-    if (!process.env.MONGO_URI) {
-      throw new Error(
-        "MONGO_URI is missing in .env"
-      );
-    }
+    wss.close();
 
-    await mongoose.connect(
-      process.env.MONGO_URI
-    );
+    server.close(
+      async () => {
+        try {
+          await persistence.destroy();
 
-    console.log(
-      "🍃 MongoDB connected for Yjs"
-    );
+          console.log(
+            "✅ Yjs persistence closed."
+          );
 
-    server.listen(
-      PORT,
-      () => {
-        console.log(
-          `🚀 Yjs WebSocket server running on port ${PORT}`
-        );
+          process.exit(0);
+        } catch (error) {
+          console.error(
+            "❌ Persistence shutdown error:",
+            error.message
+          );
+
+          process.exit(1);
+        }
       }
     );
   } catch (error) {
     console.error(
-      "❌ Yjs server startup failed:",
+      "❌ Shutdown error:",
       error.message
     );
 
@@ -316,4 +319,46 @@ const start = async () => {
   }
 };
 
-start();
+process.on(
+  "SIGTERM",
+  () => shutdown("SIGTERM")
+);
+
+process.on(
+  "SIGINT",
+  () => shutdown("SIGINT")
+);
+
+// =====================================================
+// START
+// =====================================================
+
+server.listen(
+  PORT,
+  HOST,
+  () => {
+    console.log("");
+    console.log(
+      "========================================"
+    );
+    console.log(
+      "🚀 SyncSpace Yjs Server"
+    );
+    console.log(
+      "========================================"
+    );
+    console.log(
+      `🌐 HTTP: http://${HOST}:${PORT}`
+    );
+    console.log(
+      `🔌 WebSocket: ws://localhost:${PORT}`
+    );
+    console.log(
+      "💾 Persistence: MongoDB"
+    );
+    console.log(
+      "========================================"
+    );
+    console.log("");
+  }
+);
